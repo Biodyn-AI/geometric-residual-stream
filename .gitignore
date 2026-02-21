@@ -1,0 +1,30 @@
+# Virtual environments
+.conda_env/
+.venv_geo/
+__pycache__/
+*.pyc
+
+# Large data and outputs (reproduce via scripts)
+implementation/data/
+implementation/outputs/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.png
+
+# macOS
+.DS_Store
+._*
+
+# IDE
+.idea/
+.vscode/
+*.swp

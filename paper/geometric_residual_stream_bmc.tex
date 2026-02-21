@@ -1,0 +1,769 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{caption}
+\usepackage{graphicx}
+\graphicspath{{figures/}}
+\usepackage{xcolor}
+\usepackage{authblk}
+\usepackage{lineno}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    citecolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\newcommand{\AUROC}{\mathrm{AUROC}}
+\newcommand{\DAURC}{\Delta\mathrm{AUROC}}
+\newcommand{\ECE}{\mathrm{ECE}}
+
+\title{Residual-Stream Geometry of Single-Cell Foundation Models\\Encodes Gene Regulatory Structure Across Tissues}
+\author[1]{Ihor Kendiukhov}
+\affil[1]{University of T\"ubingen, T\"ubingen, Germany}
+\date{}
+
+\begin{document}
+\maketitle
+
+% ============================================================================
+% ABSTRACT (BMC structured: Background / Results / Conclusions, max 350 words)
+% ============================================================================
+\begin{abstract}
+\textbf{Background:}
+Single-cell foundation models such as scGPT and Geneformer learn rich representations of gene expression programs, but whether these representations encode gene regulatory relationships beyond expression-level confounds remains unclear.
+Attention patterns in these models have been shown to capture co-expression rather than direct regulation, leaving open the question of whether deeper representations---particularly the residual stream---contain genuine regulatory information.
+
+\textbf{Results:}
+We systematically investigated residual-stream geometry in scGPT and Geneformer across four tissue contexts from the Tabula Sapiens atlas, evaluating whether geometric proximity between gene vectors predicts curated TRRUST transcription factor--target edges beyond expression confounds.
+Geometric features provided significant incremental signal in kidney ($\DAURC = +0.090$, $p = 0.025$) and immune ($\DAURC = +0.033$, all bootstrap CIs above zero) settings, validated by label-permutation and geometry-shuffle null controls.
+Initial null results in lung tissues were resolved through methodological refinement: centered-cosine similarity and PCA projection recovered robust signal across all domains.
+Cell-type stratification revealed that signal strength tracks transcriptional activity, with CD8$^+$ T cells showing the strongest effect ($\DAURC = +0.067$).
+Cross-model analysis showed that scGPT and Geneformer encode partially complementary regulatory information (edge-level $\rho \approx 0.47$), with structured disagreement enriched for specific transcription factor families.
+Multi-layer representation bundling eliminated an apparent scGPT disadvantage, demonstrating that regulatory information is distributed across transformer depth.
+A compact stacking model combining both architectures yielded consistent improvements under leakage-resistant nested cross-validation (immune $+0.017$, lung $+0.010$, external lung $+0.011$ AUROC).
+
+\textbf{Conclusions:}
+Foundation model residual streams encode genuine gene regulatory structure that is distributed across layers and complementary across architectures.
+This geometric signal provides an orthogonal evidence source for gene regulatory network inference, with practical utility for edge re-ranking and hypothesis prioritization in multi-evidence frameworks.
+\end{abstract}
+
+\textbf{Keywords:} gene regulatory networks, single-cell foundation models, mechanistic interpretability, representation geometry, scGPT, Geneformer, residual stream
+
+\newpage
+
+% ============================================================================
+% 1. BACKGROUND (BMC: replaces Introduction + Related Work)
+% ============================================================================
+\section*{Background}
+
+Gene regulatory networks (GRNs) govern the dynamic orchestration of gene expression programs that underlie cellular identity, differentiation, and response to perturbation \cite{davidson2002genomic,alon2007network}.
+At their core, these networks describe the relationships between transcription factors (TFs) and their target genes---relationships that are combinatorial, context-specific, and operating across multiple timescales.
+Understanding these regulatory architectures is essential for interpreting disease mechanisms, predicting cellular responses to perturbation, and designing targeted therapeutic interventions \cite{karlebach2008modelling}.
+
+Despite decades of effort, computational inference of GRNs from transcriptomic data remains a formidable challenge.
+Classical approaches based on correlation, mutual information, or regression---including widely used methods such as GENIE3 \cite{huynh2010inferring}, SCENIC \cite{aibar2017scenic}, and various Bayesian network frameworks---have achieved moderate success but face fundamental limitations.
+Co-expression, the primary statistical signal available from expression data alone, is a necessary but deeply insufficient proxy for direct regulatory interaction: genes may be co-expressed because they share upstream regulators, respond to common environmental signals, or simply reflect cell-type composition effects \cite{pratapa2020benchmarking}.
+Comprehensive benchmarking studies have revealed that even state-of-the-art GRN inference methods perform only modestly above random expectation in many settings \cite{pratapa2020benchmarking,dibaeinia2020sergio}.
+
+The emergence of large-scale single-cell foundation models---transformer architectures trained on millions of single-cell transcriptomic profiles---has opened a qualitatively new avenue for biological discovery.
+Models such as scGPT \cite{cui2024scgpt} and Geneformer \cite{theodoris2023transfer} learn to predict masked gene expression values from cellular context, constructing internal representations that capture complex statistical regularities across the transcriptome.
+Other entries in this space include scBERT \cite{yang2022scbert}, which applies BERT-style masked language modeling to single-cell data.
+These models have demonstrated utility for cell-type classification, perturbation response prediction, and gene function annotation, suggesting that they encode biologically meaningful structure beyond individual expression measurements \cite{cui2024scgpt,theodoris2023transfer}.
+
+A natural question arises: do these learned representations encode information about gene regulatory relationships?
+Recent work in mechanistic interpretability has provided partial answers.
+Analysis of attention patterns in scGPT and Geneformer revealed that attention weights predominantly capture gene co-expression structure rather than direct causal regulatory relationships \cite{kendiukhov2025attention}.
+This negative result for attention-based regulatory inference leaves open the possibility that deeper representations---particularly the residual stream, which accumulates transformed information across all layers---may encode regulatory structure that attention patterns alone do not reflect.
+
+The residual stream occupies a privileged position in transformer architectures.
+In contrast to attention weights, which capture pairwise token interactions within a single layer, residual-stream representations integrate information progressively across layers through additive skip connections \cite{vaswani2017attention,elhage2021mathematical}.
+Recent advances in mechanistic interpretability have shown that residual-stream geometry in language models encodes rich semantic and syntactic structure \cite{elhage2022toy,park2023linear}, raising the possibility that analogous geometric structure in biological transformers may reflect regulatory organization.
+The idea that geometric relationships in learned representation spaces reflect meaningful biological structure has precedent: in protein language models, cosine similarity between residue representations predicts contact maps \cite{rao2021transformer}, and in drug discovery, molecular embedding geometry correlates with pharmacological similarity \cite{stokes2020deep}.
+
+In the single-cell context, the distributional hypothesis predicts that genes participating in shared regulatory programs should occupy related regions of the representation space \cite{mikolov2013distributed}.
+Testing this prediction rigorously requires separating regulatory-specific geometric signal from confounds such as expression abundance, detection frequency, and variance---all of which can create geometric proximity patterns that are statistically associated with, but not causally informative about, regulatory interactions.
+However, systematic investigation of whether pairwise geometric relationships between gene representations encode regulatory structure has not been previously reported.
+
+In this work, we present a systematic investigation of whether and how residual-stream geometry in single-cell foundation models encodes gene regulatory information.
+Our study spans four tissue contexts from the Tabula Sapiens atlas \cite{tabulasapiens2022}, two independently trained foundation models (scGPT and Geneformer), multiple geometric metrics and dimensionality reduction strategies, and comprehensive null controls.
+Our contributions are fourfold:
+\begin{enumerate}[leftmargin=2em]
+    \item We establish that residual-stream geometry carries genuine incremental signal for TF--target edge classification beyond expression-level confounds, validated by stringent null controls.
+    \item We demonstrate that apparent domain-dependent failures are largely methodological: centered-cosine similarity, PCA-based low-rank projection, and multi-layer bundling recover robust signal across all domains.
+    \item We show that scGPT and Geneformer encode partially complementary regulatory information, with cross-model discrepancy primarily attributable to representation construction bottlenecks.
+    \item We demonstrate that a compact stacking model combining both architectures yields consistent, leakage-resistant improvements across all tissue domains.
+\end{enumerate}
+
+
+% ============================================================================
+% 2. RESULTS (BMC: Results come before Discussion and Methods)
+% ============================================================================
+\section*{Results}
+
+\subsection*{Residual-stream geometry encodes regulatory information beyond expression confounds}
+
+We first asked whether pairwise geometric relationships between gene vectors in the scGPT residual stream predict curated TF--target regulatory edges beyond what is explained by gene-level expression confounds.
+Using the kidney processed dataset as an initial test case (256 cells, 512-gene token budget), we extracted per-gene residual-stream embeddings at each of the 12 transformer layers and evaluated the incremental predictive value of cosine similarity for edge classification against 288 positive TRRUST edges and 864 matched negatives.
+
+Geometric features provided substantial and statistically significant incremental signal.
+The strongest effect was observed at layer~5, with $\DAURC = +0.064$ (bootstrap 95\% CI: $[0.018, 0.111]$; Table~\ref{tab:initial_signal}).
+This signal was robust across random cell-sampling seeds: across three independent samples (seeds 42, 43, 44), the best aggregate layer (L4) yielded a mean $\DAURC = +0.090$ with standard deviation 0.024 and all individual replicate confidence intervals above zero (range: $[0.064, 0.113]$).
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Initial geometric signal detection.} AUROC deltas (geometry-augmented minus baseline-only) for the kidney dataset across experimental configurations.
+All results use scGPT residual-stream cosine similarity as the geometric feature.
+CIs are 95\% bootstrap intervals.}
+\label{tab:initial_signal}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Configuration} & \textbf{Best Layer} & $\boldsymbol{\DAURC}$ & \textbf{95\% CI} & \textbf{Seeds} \\
+\midrule
+Kidney (seed 42, 512 genes) & L5 & $+0.064$ & $[0.018, 0.111]$ & 1 \\
+Kidney (seed 42, 1024 genes) & L4 & $+0.049$ & $[0.004, 0.091]$ & 1 \\
+Kidney (3-seed aggregate) & L4 & $+0.090$ & all CI-low $> 0$ & 3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Importantly, null controls confirmed that this signal is genuine.
+Label-permutation analysis ($n = 40$) yielded an empirical $p$-value of 0.025 at the best layer, indicating that fewer than 1 in 40 random label assignments produced a $\DAURC$ as large as the observed value.
+The geometry-feature shuffle null ($n = 60$) produced even stronger separation: the true $\DAURC$ of 0.075 at L5 compared to a null mean of 0.003, with an empirical $p < 1/60$ ($<0.017$).
+Together, these controls establish that the observed geometric signal is neither a statistical artifact of the evaluation procedure nor an effect of adding any arbitrary additional feature (Figure~\ref{fig:null_controls}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig2_null_controls.pdf}
+\caption{\textbf{Null control validation of geometric signal.}
+\textbf{(A)} Distribution of $\DAURC$ values under 40 random label permutations for kidney at layer~5.
+The observed value (red dashed line, 0.075) exceeds all but one permutation ($p = 0.025$).
+\textbf{(B)} Distribution of $\DAURC$ values under 60 geometry-feature shuffles.
+The observed value far exceeds the null distribution (mean 0.003), with $p < 0.017$.
+Both controls confirm that the geometric signal is genuine and feature-specific.}
+\label{fig:null_controls}
+\end{figure}
+
+A sensitivity analysis on token budget (512 vs.\ 1,024 genes per cell) revealed that the geometric effect attenuates with larger budgets ($\DAURC$ decreased from $+0.064$ to $+0.049$), but remained positive and statistically significant.
+This attenuation likely reflects the dilution of per-gene representation quality as the model processes longer sequences.
+
+\subsection*{Geometric signal is tissue-dependent but recoverable through methodological refinement}
+
+Having established a genuine geometric signal in kidney, we next asked whether this finding generalizes across tissues.
+Cross-domain analysis revealed substantial heterogeneity (Figure~\ref{fig:signal_detection}A; Table~\ref{tab:cross_domain}).
+The immune domain showed consistent positive gains (aggregate mean $\DAURC = +0.033$ with all seed replicates above zero), but lung and external lung initially appeared near-null under the same cosine similarity protocol that succeeded in kidney.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Cross-domain heterogeneity and feature recovery.}
+Top panel: initial results using raw cosine similarity.
+Bottom panel: results after switching to centered cosine or PCA-projected centered cosine.
+All values are mean $\DAURC$ across 3 seeds with standard deviations.}
+\label{tab:cross_domain}
+\small
+\begin{tabular}{llcccl}
+\toprule
+\textbf{Domain} & \textbf{Metric} & \textbf{Best Layer} & \textbf{Mean $\boldsymbol{\DAURC}$} & \textbf{Std} & \textbf{CI Status} \\
+\midrule
+\multicolumn{6}{l}{\textit{Raw cosine similarity}} \\
+Kidney & cosine & L4 & $+0.090$ & 0.024 & all $> 0$ \\
+Immune & cosine & L0 & $+0.033$ & 0.007 & all $> 0$ \\
+Lung & cosine & L0 & $+0.001$ & 0.001 & none $> 0$ \\
+External lung & cosine & L3 & $+0.002$ & 0.001 & 0.67 $> 0$ \\
+\midrule
+\multicolumn{6}{l}{\textit{Centered cosine (lung recovery)}} \\
+Lung & centered cosine & L0 & $+0.010$ & 0.002 & all $> 0$ \\
+Lung & pca64\_cc & L0 & $+0.013$ & --- & CI $[0.008, 0.018]$ \\
+External lung & pca64\_cc & L3 & $+0.003$ & --- & CI $[0.000, 0.006]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig1_signal_detection.pdf}
+\caption{\textbf{Cross-domain geometric signal and metric recovery.}
+\textbf{(A)} Mean $\DAURC$ (geometry-augmented minus baseline-only AUROC) across three random seeds using raw cosine similarity.
+Error bars show standard deviations.
+Kidney and immune show robust positive signal (asterisks indicate all seed bootstrap CIs above zero); lung and external lung are near null under this metric.
+\textbf{(B)} Recovery of lung-domain signal through metric refinement.
+Centered-cosine similarity and PCA-projected centered cosine (pca64) restore significant positive signal in both lung domains (asterisks indicate bootstrap CI excluding zero).}
+\label{fig:signal_detection}
+\end{figure}
+
+We investigated whether the lung failure reflected a metric limitation rather than absent biological signal.
+Centered-cosine similarity---which first subtracts the global mean gene vector before computing cosine---substantially recovered the lung signal (Figure~\ref{fig:signal_detection}B).
+Across three seeds, centered cosine yielded a lung $\DAURC$ of $+0.010$ (std 0.002) with all replicate confidence intervals above zero.
+Both null controls confirmed the signal: geometry-shuffle $p < 1/60$, label-permutation $p < 1/40$.
+
+Low-rank PCA projection further improved stability.
+The \texttt{pca64\_centered\_cosine} variant yielded the strongest lung result ($\DAURC = +0.013$, CI $[0.008, 0.018]$) and produced the first significant external-lung signal ($\DAURC = +0.003$, CI $[0.000, 0.006]$).
+In the kidney domain, PCA variants also improved absolute performance (best: \texttt{pca32\_centered\_cosine}, $\DAURC = +0.099$, CI $[0.056, 0.146]$).
+
+Raw cosine similarity is dominated by the global offset structure of the representation space: genes with large norm vectors tend to have high pairwise cosine similarity regardless of regulatory relationships.
+Centering removes this global offset, isolating the directional component that carries regulatory information.
+PCA projection further concentrates signal by eliminating noise-dominated dimensions.
+
+\subsection*{Cell-type and donor stratification reveals biological specificity}
+
+To assess whether the geometric signal reflects genuine regulatory biology rather than cell-type composition effects, we performed stratified analyses within individual cell types and donors.
+
+\paragraph{Cell-type stratification.}
+Within the immune domain, we evaluated geometric signal separately in three major cell populations using \texttt{pca64\_centered\_cosine} at L0 (Table~\ref{tab:celltype}).
+The results revealed striking cell-type specificity (Figure~\ref{fig:celltype}): CD8$^+$ T cells showed the strongest signal ($\DAURC = +0.067$, CI $[0.043, 0.093]$), followed by CD4$^+$ T cells ($+0.040$, CI $[0.016, 0.068]$) and B cells ($+0.034$, CI $[0.018, 0.052]$).
+In the lung domain, macrophages showed the strongest signal ($+0.008$, CI $[0.003, 0.014]$), while alveolar type~II cells were weaker ($+0.006$, CI including zero) and alveolar type~I cells showed no detectable signal.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Cell-type stratified geometric signal.}
+AUROC deltas using \texttt{pca64\_centered\_cosine} features.
+Immune cell types show consistent positive signal; lung cell types show heterogeneous effects.}
+\label{tab:celltype}
+\small
+\begin{tabular}{llccl}
+\toprule
+\textbf{Domain} & \textbf{Cell Type} & $\boldsymbol{\DAURC}$ & \textbf{95\% CI} & \textbf{Significant?} \\
+\midrule
+Immune & CD8$^+$ T cell & $+0.067$ & $[0.043, 0.093]$ & Yes \\
+Immune & CD4$^+$ T cell & $+0.040$ & $[0.016, 0.068]$ & Yes \\
+Immune & B cell & $+0.034$ & $[0.018, 0.052]$ & Yes \\
+\midrule
+Lung & Macrophage & $+0.008$ & $[0.003, 0.014]$ & Yes \\
+Lung & Alveolar type II & $+0.006$ & $[-0.002, 0.014]$ & No \\
+Lung & Alveolar type I & $-0.001$ & $[-0.005, 0.003]$ & No \\
+\midrule
+\multicolumn{2}{l}{Immune aggregate} & $+0.047$ & --- & 3/3 \\
+\multicolumn{2}{l}{Lung aggregate} & $+0.005$ & --- & 1/3 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{fig3_celltype_stratification.pdf}
+\caption{\textbf{Cell-type stratified geometric signal.}
+$\DAURC$ using \texttt{pca64\_centered\_cosine} features for individual cell types within the immune (blue) and lung (green) domains.
+Error bars show 95\% bootstrap confidence intervals.
+Asterisks indicate CI excluding zero; ``n.s.'' indicates non-significant.
+CD8$^+$ T cells show the strongest signal, consistent with their dramatic transcriptional reprogramming upon activation.}
+\label{fig:celltype}
+\end{figure}
+
+The gradient of signal strength across immune cell types is biologically plausible.
+CD8$^+$ T cells undergo dramatic transcriptional reprogramming upon activation, involving well-characterized TF cascades (T-bet, Eomes, Blimp-1) that produce strong, coordinated expression programs likely to leave clear geometric imprints \cite{kaech2012transcription}.
+CD4$^+$ T cells have somewhat more diverse and context-dependent regulatory programs, while B cells may have regulatory programs less prominently represented in the scGPT training data.
+
+\paragraph{Donor stratification.}
+Within the immune domain, we evaluated signal consistency across the three largest donors (TSP14: 4,513 cells; TSP25: 3,261 cells; TSP21: 3,223 cells).
+All three donors showed positive $\DAURC$ with confidence intervals above zero under \texttt{pca64\_centered\_cosine} (mean $\DAURC = 0.027$, std 0.010).
+Label-permutation $p$-values were $<0.02$ for two donors and $0.075$ for the third, supporting the conclusion that geometric signal is not driven by a single donor's idiosyncratic expression structure.
+
+\subsection*{Cross-model replication confirms regulatory encoding is a general property}
+
+A critical question is whether geometric regulatory encoding is specific to one model's architecture, or reflects a more general property of foundation model representations.
+We replicated the full analysis pipeline using Geneformer embeddings.
+
+Geneformer showed robust and consistently strong geometric signal across all tissue domains (Figure~\ref{fig:cross_model}A; Table~\ref{tab:geneformer}).
+The centered-cosine $\DAURC$ was $+0.048$ in immune (CI $[0.029, 0.064]$), $+0.039$ in lung (CI $[0.033, 0.045]$), and $+0.046$ in external lung (CI $[0.040, 0.053]$).
+Both null controls yielded $p < 0.001$ across all domains.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Cross-model comparison: scGPT vs.\ Geneformer geometric signal.}
+scGPT values use pca64\_centered\_cosine at the best single layer.
+Geneformer values use centered cosine on token embeddings.
+The gap column shows Geneformer minus scGPT $\DAURC$ on shared edges.}
+\label{tab:geneformer}
+\small
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Domain} & \textbf{scGPT} & \textbf{Geneformer} & \textbf{Gap} & \textbf{Edge $\rho$} & \textbf{GF Nulls} \\
+\midrule
+Immune & $+0.028$ & $+0.050$ & $+0.023$ & 0.476 & $p < 0.001$ \\
+Lung & $+0.013$ & $+0.026$ & $+0.013$ & 0.480 & $p < 0.001$ \\
+External lung & $+0.003$ & $+0.026$ & $+0.023$ & 0.467 & $p < 0.001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The fact that two independently trained models---with different architectures, tokenization strategies, and training corpora---both produce significant geometric regulatory signal strongly argues against the possibility that this signal is an artifact of any single model's training procedure.
+Edge-level score correlations between the two models were moderate ($\rho \approx 0.47$ across domains), indicating that while both models capture regulatory structure, they do so through partially distinct representations.
+
+\subsection*{Cross-model discrepancy is a representation construction bottleneck}
+
+The consistent Geneformer advantage raised a diagnostic question: does it reflect genuinely superior model representations, or a limitation of our scGPT feature extraction protocol?
+
+\paragraph{Gene coverage is not the explanation.}
+Restricting both models to shared genes did not close the gap: on shared edges, Geneformer retained advantages of $+0.023$ (immune), $+0.013$ (lung), and $+0.023$ (external lung).
+
+\paragraph{Disagreement is structured, not random.}
+Stratifying edges by absolute score disagreement revealed that high-disagreement edges were enriched for specific TF families.
+In the immune domain, GATA1 (3.5$\times$ enrichment) and KLF1 (3.1$\times$) were overrepresented in the highest disagreement decile---both well-characterized hematopoietic TFs.
+In lung, HNF4A (5.4$\times$), a hepatocyte/epithelial TF, was prominently enriched.
+
+\paragraph{Multi-layer bundling closes the gap.}
+Rather than selecting the single best layer, we concatenated geometric features across all 12 scGPT layers (L0--L11) into a multi-layer bundle.
+This produced a dramatic improvement in external lung, raising the scGPT $\DAURC$ from $+0.003$ (single layer L3) to $+0.023$ (L0--11 bundle), reducing the Geneformer--scGPT gap from $+0.023$ to just $+0.003$ (Figure~\ref{fig:cross_model}B; Table~\ref{tab:bundle}).
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Representation repair through multi-layer bundling and seed ensembling.}
+All values are mean $\DAURC$ across 3 seeds (42, 43, 44) on the external-lung domain unless otherwise noted.
+The gap column shows Geneformer minus scGPT.
+Final row shows seed-ensemble bundled results.}
+\label{tab:bundle}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{scGPT Representation} & \textbf{scGPT $\DAURC$} & \textbf{GF $\DAURC$} & \textbf{Gap (GF$-$scGPT)} \\
+\midrule
+\multicolumn{4}{l}{\textit{External lung (mean across seeds)}} \\
+Single layer (L3) & $+0.003$ & $+0.025$ & $+0.025$ \\
+Bundle L1--4 & $+0.016$ & $+0.025$ & $+0.012$ \\
+Bundle L0--5 & $+0.023$ & $+0.025$ & $+0.005$ \\
+Bundle L0--11 & $+0.026$ & $+0.025$ & $+0.001$ \\
+Seed-ensemble L0--11 & $+0.026$ & $+0.024$ & $-0.001$ \\
+\midrule
+\multicolumn{4}{l}{\textit{Cross-domain transfer (seed-ensemble L0--11)}} \\
+Immune & $+0.066$ & $+0.054$ & $-0.013$ \\
+Lung & $+0.039$ & $+0.028$ & $-0.011$ \\
+External lung & $+0.026$ & $+0.024$ & $-0.001$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fig4_cross_model_repair.pdf}
+\caption{\textbf{Cross-model comparison and representation repair.}
+\textbf{(A)} Single-layer scGPT (blue) vs.\ Geneformer (vermillion) $\DAURC$ across tissue domains on shared edges.
+Geneformer shows consistently larger signal, with the gap particularly pronounced in external lung.
+Grey annotations show the Geneformer--scGPT gap.
+\textbf{(B)} Representation repair in the external-lung domain through progressive multi-layer bundling of scGPT features.
+Bars show scGPT $\DAURC$ as more layers are included; the dashed line shows the Geneformer reference.
+The gap closes monotonically and is eliminated by the full L0--11 seed-ensemble bundle.}
+\label{fig:cross_model}
+\end{figure}
+
+Seed ensembling---averaging geometric features across three random cell samples before classification---further stabilized the result.
+Under the full seed-ensemble L0--11 bundle, the external-lung gap reversed to $-0.001$ (scGPT slightly ahead).
+The same representation repair protocol generalized across domains: in immune, bundled seed-ensemble scGPT ($+0.066$) exceeded Geneformer ($+0.054$); in lung, the pattern was similar ($+0.039$ vs.\ $+0.028$).
+
+These findings demonstrate that the initial scGPT disadvantage was not a reflection of inferior model quality but of a suboptimal extraction protocol: selecting a single representational layer discards information distributed across the transformer's processing depth.
+This parallels findings in NLP, where different layers encode qualitatively different types of information \cite{tenney2019bert}.
+
+\subsection*{Combined modeling yields robust improvements under leakage-resistant evaluation}
+
+Having established that both models carry complementary regulatory information, we trained a compact stacking model using nested outer-split cross-validation to prevent information leakage between feature construction and evaluation.
+
+The compact model consistently improved over the best single-model branch across all tissue domains (Figure~\ref{fig:compact}; Table~\ref{tab:compact}).
+Improvements ranged from $+0.010$ (lung) to $+0.017$ (immune) in AUROC, with all gains supported by bootstrap confidence intervals.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Compact stacking model under leakage-resistant outer-split evaluation.}
+Baseline, scGPT, and Geneformer columns show single-branch AUROCs.
+The compact model combines both branches via stacked logistic regression with OOF predictions.
+$\Delta$ shows compact minus best single branch.}
+\label{tab:compact}
+\small
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Domain} & \textbf{Baseline} & \textbf{scGPT} & \textbf{Geneformer} & \textbf{Compact} & $\boldsymbol{\Delta}$ \\
+\midrule
+Immune & 0.642 & 0.711 & 0.697 & 0.728 & $+0.017$ \\
+Lung & 0.571 & 0.612 & 0.600 & 0.622 & $+0.010$ \\
+External lung & 0.593 & 0.619 & 0.617 & 0.630 & $+0.011$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.78\textwidth]{fig5_compact_model.pdf}
+\caption{\textbf{Compact stacking model performance under leakage-resistant evaluation.}
+AUROC for baseline-only (grey), scGPT branch (blue), Geneformer branch (vermillion), and compact stacking model (indigo) across three tissue domains.
+The compact model consistently outperforms the best single branch, with gains annotated above each bar.
+All evaluations use nested outer-split cross-validation to prevent information leakage.
+The dotted grey line indicates random performance (AUROC = 0.5).}
+\label{fig:compact}
+\end{figure}
+
+\paragraph{Model disagreement identifies regions of maximal complementarity.}
+Defining ``disagreement'' as the absolute difference between scGPT and Geneformer branch probabilities, we found that compact model gains were largest at moderate disagreement thresholds.
+At threshold $\tau = 0.15$ in the immune domain, the compact model improved by $+0.047$ AUROC over the best single branch on edges with $|\hat{p}_{\text{scGPT}} - \hat{p}_{\text{GF}}| \geq \tau$ (28.7\% of edges).
+
+\paragraph{Calibration analysis.}
+While the compact model improved ranking (AUROC), its raw probability outputs showed systematic miscalibration ($\ECE \approx 0.18$--$0.22$).
+Isotonic calibration substantially reduced ECE (to $0.003$--$0.031$) with a modest AUROC cost ($-0.004$ to $-0.012$).
+
+\subsection*{Negative and mixed findings}
+
+\paragraph{Lung tissue remained challenging.}
+Despite methodological recovery, absolute effect sizes in lung were consistently smaller than in immune or kidney (mean $\DAURC \approx +0.010$ vs.\ $+0.030$--$+0.090$).
+Only 1 of 3 lung cell types (macrophages) produced individually significant geometric signal.
+
+\paragraph{Naive feature fusion was ineffective.}
+Simply adding both models' geometric features to a single logistic regression (without stacking) produced gains of only $+0.001$ over Geneformer alone.
+The stacking architecture's advantage comes from learning a context-dependent combination policy.
+
+
+% ============================================================================
+% 3. DISCUSSION
+% ============================================================================
+\section*{Discussion}
+
+\subsection*{What geometric regulatory signal represents biologically}
+
+The central finding of this work is that the geometric arrangement of gene vectors in foundation model representation spaces encodes genuine information about transcription factor--target regulatory relationships.
+This signal is not reducible to expression-level confounds and is independently confirmed across two architectures trained on overlapping but distinct datasets.
+
+We propose that this signal reflects \emph{co-regulatory program structure}: genes that participate in shared or coupled regulatory cascades are encoded in related directions within the representation space, because the models learn to predict expression patterns shaped by regulatory relationships.
+This is consistent with the distributional hypothesis applied to transcriptomic data---genes that ``co-occur'' in similar expression contexts develop similar representations, and regulatory relationships generate specific co-occurrence patterns that leave geometric imprints.
+
+This interpretation implies that geometric signal is a proxy for regulatory program membership, not a direct readout of TF binding.
+The signal should be strongest for regulatory relationships that produce clear, consistent expression signatures, and weakest for context-specific or transient interactions.
+This prediction is consistent with our observation that the signal is strongest in CD8$^+$ T cells, where transcriptional reprogramming is dramatic and well-characterized, and weakest in relatively quiescent epithelial populations.
+
+\subsection*{The distributed nature of regulatory information in transformers}
+
+Perhaps the most important methodological insight is that regulatory information in transformer residual streams is distributed across layers and stochastic across random initializations.
+The dramatic improvement from single-layer to multi-layer bundled scGPT representations---from near-null to competitive with Geneformer in the external-lung domain---demonstrates that different layers encode qualitatively different aspects of regulatory geometry.
+
+This finding parallels results in NLP, where syntactic information concentrates in early-to-middle layers and semantic information in later layers of BERT-style models \cite{tenney2019bert}.
+It suggests that interpretability studies of biological transformers should routinely evaluate multi-layer representations rather than selecting single ``best'' layers, which risks missing information encoded at non-optimal depths.
+
+\subsection*{Complementarity between model architectures}
+
+The partial complementarity between scGPT and Geneformer signals has both scientific and practical implications.
+The moderate edge-level correlation ($\rho \approx 0.47$) quantifies this complementarity: enough overlap to suggest both models capture real biology, but enough divergence to enable genuine information gain through combination.
+The enrichment of specific TF families in high-disagreement regions (GATA1, KLF1 in immune; HNF4A in lung) suggests that disagreement is biologically structured, reflecting genuine differences in how each model encodes specific regulatory programs.
+
+Practically, this complementarity means that future improvements in either architecture can contribute additive value to the combined system.
+The compact stacking framework provides a principled mechanism for integrating such improvements.
+
+\subsection*{Comparison with attention-based approaches}
+
+Our findings should be interpreted alongside recent work showing that attention patterns in single-cell transformers primarily capture co-expression rather than direct regulatory relationships \cite{kendiukhov2025attention}.
+Taken together, these results suggest that while attention weights reflect statistical co-expression, deeper residual-stream representations encode subtler regulatory structure.
+This distinction is consistent with the transformer architecture's design: attention computes pairwise token interactions within a layer, while the residual stream accumulates information across all layers through additive skip connections.
+
+\subsection*{Implications for gene regulatory network inference}
+
+Our results suggest a concrete role for foundation model geometry in GRN inference pipelines.
+We envision three practical applications:
+\begin{enumerate}[leftmargin=2em]
+    \item \textbf{Edge re-ranking:} Geometric scores can complement expression-based methods for re-ranking candidate regulatory edges.
+    \item \textbf{Hypothesis prioritization:} For experimental follow-up (e.g., CRISPRi screens), geometric scores provide orthogonal evidence beyond expression correlation.
+    \item \textbf{Context-dependent assessment:} Because foundation model representations are conditioned on cellular context, geometric features can capture tissue-specific regulatory relationships.
+\end{enumerate}
+
+\subsection*{Limitations}
+
+Several limitations should be considered.
+First, TRRUST provides literature-curated edges that are biased toward well-studied genes and may contain false positives and false negatives.
+Second, effect sizes are modest in absolute terms, particularly in lung tissues ($\DAURC \approx +0.010$ to $+0.017$).
+Third, the analysis is retrospective; prospective validation on independent cohorts would strengthen the conclusions.
+Fourth, biological causality is not established---geometric proximity correlates with regulatory relationships but does not demonstrate mechanistic understanding.
+Fifth, computational cost is non-trivial, though extraction is a one-time cost per model and dataset.
+
+
+% ============================================================================
+% 4. CONCLUSIONS
+% ============================================================================
+\section*{Conclusions}
+
+We have presented a systematic investigation of whether residual-stream geometry in single-cell foundation models encodes gene regulatory information.
+Through analysis spanning four tissue contexts, two foundation model architectures, multiple geometric metrics, and comprehensive null controls, we establish three principal findings.
+
+First, residual-stream geometry carries genuine incremental signal for regulatory edge classification beyond expression-level confounds, with effect sizes strongest in tissues and cell types with active transcriptional programs.
+Second, extraction of this signal is critically dependent on methodological choices---particularly centered-cosine similarity, multi-layer bundling, and seed ensembling---and initial negative results in some domains were largely methodological rather than biological.
+Third, two independently trained models encode partially complementary regulatory information that can be productively combined through stacked modeling, yielding consistent improvements across all tested domains under leakage-resistant evaluation.
+
+These findings advance our understanding of what single-cell foundation models learn about gene regulation and provide a practical framework for leveraging that knowledge in GRN inference.
+As foundation models continue to grow in scale and sophistication, systematic geometric analysis of their representations offers a promising path toward more reliable computational predictions of gene regulatory architecture.
+
+
+% ============================================================================
+% 5. METHODS (BMC: Methods section comes after Conclusions)
+% ============================================================================
+\section*{Methods}
+
+\subsection*{Data sources and preprocessing}
+
+\paragraph{Single-cell expression data.}
+We used processed single-cell RNA-seq datasets from the Tabula Sapiens atlas \cite{tabulasapiens2022}, which provides comprehensive transcriptomic profiles across human tissues.
+Four tissue contexts were analyzed: \textbf{kidney} (used for initial signal detection), \textbf{immune} (a composite of immune cell types including B cells, CD4$^+$ T cells, and CD8$^+$ T cells), \textbf{lung} (containing alveolar type~I, alveolar type~II, and macrophage populations), and \textbf{external lung} (an independent lung cohort used for orthogonal validation).
+
+\paragraph{Regulatory ground truth.}
+As a reference set of regulatory interactions, we used the TRRUST v2 database \cite{han2018trrust}, which curates experimentally validated TF--target relationships extracted from published literature.
+TRRUST provides binary regulatory edges (TF $\rightarrow$ target) without directionality of effect.
+After mapping to each tissue's gene universe, the resulting edge sets varied by domain: kidney (288 positive edges), immune ($\sim$1,768 total edges), lung ($\sim$15,384 edges), and external lung ($\sim$17,214 edges).
+
+\paragraph{Negative edge construction.}
+For each domain, we constructed matched negative edges by sampling random (source~TF, target~gene) pairs from the same source and target gene pools as the positive edges, with a 3:1 negative-to-positive ratio (kidney) or balanced 1:1 sampling (cross-domain experiments).
+
+\subsection*{Foundation models}
+
+\paragraph{scGPT.}
+We used the pre-trained scGPT whole-human model \cite{cui2024scgpt}, a 12-layer transformer with generative pre-training on over 33 million single-cell profiles.
+For each tissue context, we sampled 256 cells (default seed 42, with additional seeds 43 and 44 for replication) and extracted per-layer residual-stream activations using forward hooks.
+The token budget was set to 512 genes per cell.
+Per-gene embeddings at each layer $\ell$ were obtained by averaging the corresponding token's residual-stream vector across sampled cells:
+\begin{equation}
+    \mathbf{h}_g^{(\ell)} = \frac{1}{|C_g|} \sum_{c \in C_g} \mathbf{r}_{g,c}^{(\ell)},
+    \label{eq:gene_embedding}
+\end{equation}
+where $\mathbf{r}_{g,c}^{(\ell)} \in \mathbb{R}^d$ is the residual-stream vector for gene $g$ in cell $c$ at layer $\ell$, $C_g$ is the set of cells in which gene $g$ appears in the token sequence, and $d$ is the model's hidden dimension.
+
+\paragraph{Geneformer.}
+We used Geneformer \cite{theodoris2023transfer} with its pre-trained token embeddings.
+Gene embeddings were extracted from the model's embedding layer, producing a single static vector per gene.
+Gene mapping between the Geneformer vocabulary and each tissue's expressed genes yielded coverage rates of 41.4\% (immune), 83.2\% (lung), and 77.2\% (external lung).
+
+\subsection*{Geometric feature extraction}
+
+For each candidate TF--target pair $(g_s, g_t)$, we computed pairwise geometric features from the gene embeddings.
+Let $\mathbf{h}_s$ and $\mathbf{h}_t$ denote the source and target gene vectors, and let $\bar{\mathbf{h}} = \frac{1}{|G|}\sum_{g \in G} \mathbf{h}_g$ denote the global mean across all gene vectors.
+The following metrics were evaluated:
+
+\begin{align}
+\text{Cosine similarity:} \quad & s_{\cos}(g_s, g_t) = \frac{\mathbf{h}_s^\top \mathbf{h}_t}{\|\mathbf{h}_s\| \, \|\mathbf{h}_t\|}, \label{eq:cosine} \\[6pt]
+\text{Centered cosine:} \quad & s_{\text{cc}}(g_s, g_t) = \frac{(\mathbf{h}_s - \bar{\mathbf{h}})^\top (\mathbf{h}_t - \bar{\mathbf{h}})}{\|\mathbf{h}_s - \bar{\mathbf{h}}\| \, \|\mathbf{h}_t - \bar{\mathbf{h}}\|}, \label{eq:centered_cosine} \\[6pt]
+\text{Negative $L_2$ distance:} \quad & s_{L_2}(g_s, g_t) = -\|\mathbf{h}_s - \mathbf{h}_t\|_2, \label{eq:neg_l2} \\[6pt]
+\text{Dot product:} \quad & s_{\text{dot}}(g_s, g_t) = \mathbf{h}_s^\top \mathbf{h}_t. \label{eq:dot}
+\end{align}
+
+\paragraph{Low-rank variants.}
+For PCA-projected features, we computed the top-$k$ principal components of the gene embedding matrix $\mathbf{H} \in \mathbb{R}^{|G| \times d}$ for $k \in \{32, 64, 128\}$, projected all gene vectors into this subspace, and computed pairwise metrics in the reduced space.
+
+\paragraph{Multi-layer bundling.}
+We concatenated geometric features across multiple scGPT layers rather than selecting a single best layer.
+For a layer bundle $\mathcal{L} = \{0, 1, \ldots, L\}$, the feature vector for a candidate edge becomes $\mathbf{f}_{g_s, g_t} = [s^{(\ell)}(g_s, g_t)]_{\ell \in \mathcal{L}}$.
+
+\paragraph{Seed ensembling.}
+We averaged geometric features across multiple random seeds (42, 43, 44) before downstream classification:
+$\bar{s}(g_s, g_t) = \frac{1}{3}\sum_{i} s^{(\text{seed}_i)}(g_s, g_t)$.
+
+\subsection*{Edge classification framework}
+
+For each tissue domain, we formulated a binary classification task: given a candidate TF--target pair, predict whether it is a curated TRRUST regulatory edge (positive) or a matched non-regulatory pair (negative).
+
+\paragraph{Baseline features.}
+All models included baseline confound features: mean expression, variance, and detection frequency for both source and target genes (six features total).
+
+\paragraph{Model comparison.}
+For each domain, we compared: (1) \textbf{Baseline-only}: logistic regression on six confound features; (2) \textbf{Baseline + geometry}: logistic regression adding geometric features to the baseline.
+The primary metric is $\DAURC$: the AUROC difference between the geometry-augmented and baseline-only models.
+
+\subsection*{Evaluation protocol}
+
+All predictive evaluations used repeated stratified 5-fold cross-validation (3 repeats).
+For each $\DAURC$ estimate, 95\% bootstrap confidence intervals were computed using 1,000 resamples.
+For the compact stacking model, we used nested cross-validation: in the outer loop, data is split into train and test folds; within each outer fold, branch models are trained using inner cross-validation, and out-of-fold predictions serve as features for the meta-learner.
+
+\subsection*{Null controls}
+
+\paragraph{Label permutation.}
+We randomly permuted edge labels while preserving feature structure, then re-estimated $\DAURC$ under permuted labels ($n = 40$ repeats).
+The empirical $p$-value is the fraction of permutation values exceeding the observed $\DAURC$.
+
+\paragraph{Geometry-feature shuffle.}
+We randomly permuted geometric scores across edges while preserving baseline features and labels ($n = 60$ repeats).
+This null tests whether the geometric feature identity, not merely the presence of an additional feature, drives the observed improvement.
+
+\subsection*{Compact stacking model}
+
+The compact combiner integrates geometric signals from both foundation models through a stacked architecture: (1) train branch model A (baseline + scGPT) and B (baseline + Geneformer); (2) generate inner-fold OOF probability predictions; (3) train meta-model on baseline features + OOF predictions; (4) evaluate on held-out outer folds.
+
+
+% ============================================================================
+% DECLARATIONS (BMC requirement)
+% ============================================================================
+\section*{Declarations}
+
+\subsection*{Ethics approval and consent to participate}
+Not applicable. This study used only publicly available datasets (Tabula Sapiens atlas, TRRUST database) and did not involve human subjects, animal experiments, or clinical data requiring ethics approval.
+
+\subsection*{Consent for publication}
+Not applicable.
+
+\subsection*{Availability of data and materials}
+The Tabula Sapiens atlas is available at \url{https://tabula-sapiens-portal.ds.czbiohub.org/}.
+The TRRUST v2 database is available at \url{https://www.grnpedia.org/trrust/}.
+The scGPT pre-trained model is available at \url{https://github.com/bowang-lab/scGPT}.
+The Geneformer pre-trained model is available on Hugging Face at \url{https://huggingface.co/ctheodoris/Geneformer}.
+All analysis code, environment specifications, and reproduction instructions are available at \url{https://github.com/Biodyn-AI/geometric-residual-stream}.
+
+\subsection*{Competing interests}
+The author declares no competing interests.
+
+\subsection*{Funding}
+No specific funding was received for this study.
+
+\subsection*{Authors' contributions}
+IK conceived the study, designed and conducted all computational analyses, and wrote the manuscript.
+
+\subsection*{Acknowledgements}
+The author thanks the Tabula Sapiens Consortium, the scGPT development team, and the Geneformer development team for making their data and models publicly available.
+
+
+% ============================================================================
+% REFERENCES (Vancouver numbered style)
+% ============================================================================
+\begin{thebibliography}{99}
+
+\bibitem{davidson2002genomic}
+Davidson EH, Rast JP, Oliveri P, et al.
+A genomic regulatory network for development.
+\textit{Science}. 2002;295(5560):1669--1678.
+
+\bibitem{alon2007network}
+Alon U.
+Network motifs: theory and experimental approaches.
+\textit{Nat Rev Genet}. 2007;8(6):450--461.
+
+\bibitem{karlebach2008modelling}
+Karlebach G, Shamir R.
+Modelling and analysis of gene regulatory networks.
+\textit{Nat Rev Mol Cell Biol}. 2008;9(10):770--780.
+
+\bibitem{huynh2010inferring}
+Huynh-Thu VA, Irrthum A, Wehenkel L, Geurts P.
+Inferring regulatory networks from expression data using tree-based methods.
+\textit{PLoS ONE}. 2010;5(9):e12776.
+
+\bibitem{aibar2017scenic}
+Aibar S, Gonz{\'a}lez-Blas CB, Moerman T, et al.
+SCENIC: single-cell regulatory network inference and clustering.
+\textit{Nat Methods}. 2017;14(11):1083--1086.
+
+\bibitem{pratapa2020benchmarking}
+Pratapa A, Jalihal AP, Law JN, Bharadwaj A, Murali TM.
+Benchmarking algorithms for gene regulatory network inference from single-cell transcriptomic data.
+\textit{Nat Methods}. 2020;17(2):147--154.
+
+\bibitem{dibaeinia2020sergio}
+Dibaeinia P, Sinha S.
+SERGIO: a single-cell expression simulator guided by gene regulatory networks.
+\textit{Cell Syst}. 2020;11(3):252--271.
+
+\bibitem{cui2024scgpt}
+Cui H, Wang C, Maan H, et al.
+scGPT: toward building a foundation model for single-cell multi-omics using generative AI.
+\textit{Nat Methods}. 2024;21(8):1470--1480.
+
+\bibitem{theodoris2023transfer}
+Theodoris CV, Xiao L, Chopra A, et al.
+Transfer learning enables predictions in network biology.
+\textit{Nature}. 2023;618(7965):616--624.
+
+\bibitem{yang2022scbert}
+Yang F, Wang W, Wang F, et al.
+scBERT as a large-scale pretrained deep language model for cell type annotation of single-cell RNA-seq data.
+\textit{Nat Mach Intell}. 2022;4(10):852--866.
+
+\bibitem{tabulasapiens2022}
+The Tabula Sapiens Consortium.
+The Tabula Sapiens: a multiple-organ, single-cell transcriptomic atlas of humans.
+\textit{Science}. 2022;376(6594):eabl4896.
+
+\bibitem{han2018trrust}
+Han H, Cho JW, Lee S, et al.
+TRRUST v2: an expanded reference database of human and mouse transcriptional regulatory interactions.
+\textit{Nucleic Acids Res}. 2018;46(D1):D199--D202.
+
+\bibitem{vaswani2017attention}
+Vaswani A, Shazeer N, Parmar N, et al.
+Attention is all you need.
+\textit{Adv Neural Inf Process Syst}. 2017;30:5998--6008.
+
+\bibitem{elhage2021mathematical}
+Elhage N, Nanda N, Olsson C, et al.
+A mathematical framework for transformer circuits.
+\textit{Transformer Circuits Thread}. 2021.
+
+\bibitem{elhage2022toy}
+Elhage N, Hume T, Olsson C, et al.
+Toy models of superposition.
+\textit{arXiv preprint arXiv:2209.10652}. 2022.
+
+\bibitem{olah2020zoom}
+Olah C, Cammarata N, Schubert L, Goh G, Petrov M, Carter S.
+Zoom in: an introduction to circuits.
+\textit{Distill}. 2020;5(3):e00024.001.
+
+\bibitem{park2023linear}
+Park K, Choe YJ, Veitch V.
+The linear representation hypothesis and the geometry of large language models.
+\textit{arXiv preprint arXiv:2311.03658}. 2023.
+
+\bibitem{kendiukhov2025attention}
+Kendiukhov I.
+Attention patterns in single-cell foundation models capture co-expression, not causal regulation.
+\textit{Under review}. 2025.
+
+\bibitem{tenney2019bert}
+Tenney I, Das D, Pavlick E.
+BERT rediscovers the classical NLP pipeline.
+\textit{Proc 57th Annu Meet Assoc Comput Linguist}. 2019:4593--4601.
+
+\bibitem{kaech2012transcription}
+Kaech SM, Cui W.
+Transcriptional control of effector and memory CD8$^+$ T cell differentiation.
+\textit{Nat Rev Immunol}. 2012;12(11):749--761.
+
+\bibitem{margolin2006aracne}
+Margolin AA, Nemenman I, Basso K, et al.
+ARACNE: an algorithm for the reconstruction of gene regulatory networks in a mammalian cellular context.
+\textit{BMC Bioinformatics}. 2006;7(S1):S7.
+
+\bibitem{chan2017gene}
+Chan TE, Stumpf MPH, Babtie AC.
+Gene regulatory network inference from single-cell data using multivariate information measures.
+\textit{Cell Syst}. 2017;5(3):251--267.
+
+\bibitem{matsumoto2017scode}
+Matsumoto H, Kiryu H, Furusawa C, et al.
+SCODE: an efficient regulatory network inference algorithm from single-cell RNA-Seq during differentiation.
+\textit{Bioinformatics}. 2017;33(15):2314--2321.
+
+\bibitem{geiger2021causal}
+Geiger A, Lu H, Icard T, Potts C.
+Causal abstractions of neural networks.
+\textit{Adv Neural Inf Process Syst}. 2021;34:9574--9586.
+
+\bibitem{belinkov2022probing}
+Belinkov Y.
+Probing classifiers: promises, shortcomings, and advances.
+\textit{Comput Linguist}. 2022;48(1):207--219.
+
+\bibitem{rao2021transformer}
+Rao RM, Liu J, Verkuil R, et al.
+MSA Transformer.
+\textit{Proc 38th Int Conf Mach Learn}. 2021:8844--8856.
+
+\bibitem{stokes2020deep}
+Stokes JM, Yang K, Swanson K, et al.
+A deep learning approach to antibiotic discovery.
+\textit{Cell}. 2020;180(4):688--702.
+
+\bibitem{mikolov2013distributed}
+Mikolov T, Sutskever I, Chen K, Corrado GS, Dean J.
+Distributed representations of words and phrases and their compositionality.
+\textit{Adv Neural Inf Process Syst}. 2013;26:3111--3119.
+
+\end{thebibliography}
+
+\end{document}

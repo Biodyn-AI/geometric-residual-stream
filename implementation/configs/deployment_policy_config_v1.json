@@ -1,0 +1,58 @@
+{
+  "config_id": "subproject38_deployment_v1",
+  "created_date": "2026-02-21",
+  "policy": {
+    "modes": {
+      "ranking_first": {
+        "calibration_method": "raw",
+        "disagreement_threshold": 0.05
+      },
+      "reliability_first": {
+        "calibration_method": "isotonic",
+        "disagreement_threshold": 0.05
+      }
+    },
+    "cost_aware_default": {
+      "lambda_boundary": 0.015,
+      "rules": [
+        {
+          "name": "low_cost_rule",
+          "lambda_min_inclusive": 0.0,
+          "lambda_max_exclusive": 0.015,
+          "calibration_method": "isotonic",
+          "disagreement_threshold": 0.05
+        },
+        {
+          "name": "high_cost_rule",
+          "lambda_min_inclusive": 0.015,
+          "lambda_max_inclusive": 0.03,
+          "calibration_method": "isotonic",
+          "disagreement_threshold": 0.1
+        }
+      ],
+      "gap_resolution_note": "The empirical schedule had a 0.0125-0.015 gap; this config closes it by assigning [0.0125,0.015) to the low-cost rule."
+    }
+  },
+  "monitoring": {
+    "window_size": {
+      "primary_edges": 500,
+      "fallback_edges_low_volume": 1000
+    },
+    "hard_alert_thresholds": {
+      "coverage_rel_drift_abs": 0.2,
+      "ranking_auc_drop": 0.045572,
+      "reliability_ece_uplift": 0.049669
+    },
+    "soft_alert_thresholds": {
+      "ranking_auc_drop": 0.02,
+      "reliability_ece_uplift": 0.02
+    },
+    "hard_alert_persistence": {
+      "consecutive_windows_required": 2
+    },
+    "soft_alert_persistence": {
+      "alerts_required": 3,
+      "in_last_windows": 5
+    }
+  }
+}

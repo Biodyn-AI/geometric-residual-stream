@@ -1,0 +1,33 @@
+\documentclass[11pt]{letter}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\signature{Ihor Kendiukhov\\University of T\"ubingen}
+\address{Ihor Kendiukhov\\University of T\"ubingen\\T\"ubingen, Germany}
+
+\begin{document}
+\begin{letter}{The Editor\\BMC Bioinformatics}
+
+\opening{Dear Editor,}
+
+I am pleased to submit the manuscript entitled ``Residual-Stream Geometry of Single-Cell Foundation Models Encodes Gene Regulatory Structure Across Tissues'' for consideration as a Research Article in \textit{BMC Bioinformatics}.
+
+Single-cell foundation models such as scGPT and Geneformer have shown remarkable utility across a range of genomics tasks, yet what these models learn about gene regulatory relationships remains poorly understood. Recent work has shown that their attention patterns primarily capture co-expression rather than direct regulatory interactions, leaving open whether deeper representations contain genuine regulatory information. Our study addresses this gap by systematically investigating the geometric structure of residual-stream representations in both models.
+
+We demonstrate that the geometric arrangement of gene vectors in the residual stream predicts curated transcription factor--target regulatory edges (TRRUST database) beyond expression-level confounds, across four tissue contexts from the Tabula Sapiens atlas. Key findings include:
+
+\begin{itemize}
+    \item Significant incremental predictive signal validated by stringent label-permutation and geometry-shuffle null controls across all tissue domains.
+    \item Cell-type stratification revealing that signal strength tracks transcriptional activity, with CD8$^+$ T cells showing the strongest effect.
+    \item Cross-model replication showing that scGPT and Geneformer encode partially complementary regulatory information, enabling productive combination through stacked modeling.
+    \item A methodological insight that regulatory information is distributed across transformer layers, and that multi-layer bundling is essential for full signal extraction.
+\end{itemize}
+
+This work is well suited for \textit{BMC Bioinformatics} because it directly addresses the computational biology community's need to understand what foundation models learn about gene regulation, and provides practical methods for leveraging this knowledge in gene regulatory network inference pipelines.
+
+The manuscript has not been published or submitted elsewhere. The author has no competing interests to declare.
+
+\closing{Sincerely,}
+
+\end{letter}
+\end{document}
