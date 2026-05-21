@@ -379,3 +379,45 @@ conda run -n subproject38-geo-v2 python implementation/scripts/run_validate_depl
   --validation-window-size 500 \
   --output-dir implementation/outputs/cycle42_config_pack_validation
 ```
+
+## Revision experiments (cycles 43-51, BMC Bioinformatics major revision)
+
+Shared infrastructure: `scripts/revision_lib.py` (domain loading, geometric
+feature construction, unified evaluation harness reporting absolute AUROC/AUPRC,
+grouped CV, bootstrap). All revision scripts operate on the cached scGPT
+residual-stream embeddings produced by `run_layerwise_geometry_audit.py`.
+
+```bash
+# WP1  grouped / leakage-resistant CV (leave-TF / leave-target / leave-both-out)
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp1_grouped_cv.py
+
+# WP2  negative-edge sampling robustness (random / degree- / expression-matched)
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp2_negative_robustness.py
+
+# WP3/WP7  absolute-metric panels + unified-method comparison
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp3_metric_panels.py
+
+# WP4  uncertainty decomposition + Benjamini-Hochberg multiplicity (run after WP3)
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp4_uncertainty.py
+
+# WP5  confirmatory frozen-pipeline evaluation
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp5_confirmatory.py
+
+# WP6  Geneformer per-layer residual-stream extraction + matched cross-model eval
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp6_geneformer_residual.py
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp6_eval_cross_model.py
+
+# WP8  directionality of the geometric signal (asymmetric features)
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp8_directionality.py
+
+# WP9  ensembling with expression-based GRN inference (GENIE3 / co-expression)
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp9_grn_ensemble.py
+
+# WP10  practical-utility / top-k retrieval evaluation
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp10_practical_utility.py
+```
+
+Outputs land in `implementation/outputs/cycle43_grouped_cv` ...
+`cycle51_geneformer_residual`. Consolidated summary:
+`reports/revision_cycles43-51_new_experiments.md`. Point-by-point reviewer
+response: `paper/response_to_reviewers.md`.

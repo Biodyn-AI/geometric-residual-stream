@@ -28,9 +28,10 @@
 \newcommand{\DAURC}{\Delta\mathrm{AUROC}}
 \newcommand{\ECE}{\mathrm{ECE}}
 
-\title{Residual-Stream Geometry of Single-Cell Foundation Models\\Encodes Gene Regulatory Structure Across Tissues}
+\title{Residual-Stream Geometry of Single-Cell Foundation Models\\Carries Incremental Gene-Regulatory Signal Across Tissues}
 \author[1]{Ihor Kendiukhov}
 \affil[1]{University of T\"ubingen, T\"ubingen, Germany}
+\affil[1]{Correspondence: \texttt{ihor.kendiukhov@student.uni-tuebingen.de}}
 \date{}
 
 \begin{document}
@@ -45,17 +46,15 @@ Single-cell foundation models such as scGPT and Geneformer learn rich representa
 Attention patterns in these models have been shown to capture co-expression rather than direct regulation, leaving open the question of whether deeper representations---particularly the residual stream---contain genuine regulatory information.
 
 \textbf{Results:}
-We systematically investigated residual-stream geometry in scGPT and Geneformer across four tissue contexts from the Tabula Sapiens atlas, evaluating whether geometric proximity between gene vectors predicts curated TRRUST transcription factor--target edges beyond expression confounds.
-Geometric features provided significant incremental signal in kidney ($\DAURC = +0.090$, $p = 0.025$) and immune ($\DAURC = +0.033$, all bootstrap CIs above zero) settings, validated by label-permutation and geometry-shuffle null controls.
-Initial null results in lung tissues were resolved through methodological refinement: centered-cosine similarity and PCA projection recovered robust signal across all domains.
-Cell-type stratification revealed that signal strength tracks transcriptional activity, with CD8$^+$ T cells showing the strongest effect ($\DAURC = +0.067$).
-Cross-model analysis showed that scGPT and Geneformer encode partially complementary regulatory information (edge-level $\rho \approx 0.47$), with structured disagreement enriched for specific transcription factor families.
-Multi-layer representation bundling eliminated an apparent scGPT disadvantage, demonstrating that regulatory information is distributed across transformer depth.
-A compact stacking model combining both architectures yielded consistent improvements under leakage-resistant nested cross-validation (immune $+0.017$, lung $+0.010$, external lung $+0.011$ AUROC).
+We systematically investigated residual-stream geometry in scGPT and Geneformer across four tissue contexts from the Tabula Sapiens atlas, evaluating whether geometric proximity between gene vectors provides incremental predictive value for curated TRRUST transcription factor--target edges beyond expression confounds.
+Under repeated stratified cross-validation, geometric features provided significant incremental signal in kidney and immune settings, validated by label-permutation and geometry-shuffle null controls; centered-cosine similarity, PCA projection and multi-layer bundling recovered comparable signal in lung tissues, and the multi-layer bundle improved every domain (kidney $\DAURC=+0.122$, immune $+0.042$, lung $+0.028$, external lung $+0.027$; absolute AUROC $0.58$--$0.69$).
+The effect was fully robust to leave-TF-out and leave-target-out cross-validation and to harder degree- and expression-matched negative edges, but under the stricter leave-both-out split---no transcription factor and no target shared between folds---it collapsed to near-zero ($\DAURC\approx+0.001$ to $+0.003$), marking the ceiling of out-of-entity generalization.
+With a comparable per-layer residual-stream extraction applied to both models, the apparent Geneformer advantage largely disappeared, indicating it was a representation-construction artifact rather than architectural superiority.
+Asymmetric geometric features predicted regulatory edge orientation (AUROC $0.80$--$0.90$), and the geometric signal added incremental value on top of expression-based gene regulatory network (GRN) inference (GENIE3, co-expression).
 
 \textbf{Conclusions:}
-Foundation model residual streams encode genuine gene regulatory structure that is distributed across layers and complementary across architectures.
-This geometric signal provides an orthogonal evidence source for gene regulatory network inference, with practical utility for edge re-ranking and hypothesis prioritization in multi-evidence frameworks.
+Foundation model residual streams carry incremental, regulatory-relevant geometric signal that is distributed across layers and that complements expression-based GRN inference for retrospective edge prioritization.
+The signal is statistical enrichment rather than a stand-alone regulatory classifier: absolute performance is modest and out-of-entity generalization is limited, so its practical role is as an orthogonal evidence channel for edge re-ranking and hypothesis prioritization in multi-evidence frameworks.
 \end{abstract}
 
 \textbf{Keywords:} gene regulatory networks, single-cell foundation models, mechanistic interpretability, representation geometry, scGPT, Geneformer, residual stream
@@ -97,12 +96,13 @@ However, systematic investigation of whether pairwise geometric relationships be
 
 In this work, we present a systematic investigation of whether and how residual-stream geometry in single-cell foundation models encodes gene regulatory information.
 Our study spans four tissue contexts from the Tabula Sapiens atlas \cite{tabulasapiens2022}, two independently trained foundation models (scGPT and Geneformer), multiple geometric metrics and dimensionality reduction strategies, and comprehensive null controls.
-Our contributions are fourfold:
+Our contributions are fivefold:
 \begin{enumerate}[leftmargin=2em]
-    \item We establish that residual-stream geometry carries genuine incremental signal for TF--target edge classification beyond expression-level confounds, validated by stringent null controls.
-    \item We demonstrate that apparent domain-dependent failures are largely methodological: centered-cosine similarity, PCA-based low-rank projection, and multi-layer bundling recover robust signal across all domains.
-    \item We show that scGPT and Geneformer encode partially complementary regulatory information, with cross-model discrepancy primarily attributable to representation construction bottlenecks.
-    \item We demonstrate that a compact stacking model combining both architectures yields consistent, leakage-resistant improvements across all tissue domains.
+    \item We establish that residual-stream geometry carries incremental signal for retrospective TF--target edge prioritization beyond expression-level confounds, validated by stringent null controls and multiplicity-corrected across the full grid of comparisons.
+    \item We demonstrate that apparent domain-dependent failures are largely methodological: centered-cosine similarity, PCA-based low-rank projection, and multi-layer bundling recover comparable signal across all domains, and we apply this refined pipeline uniformly to every domain including the initial ones.
+    \item We delimit the signal honestly: it is robust to leave-TF-out, leave-target-out and harder negative-edge constructions, but collapses under leave-both-out cross-validation, and absolute performance is modest---it is enrichment, not a stand-alone classifier.
+    \item Using a comparable per-layer residual-stream extraction for both models, we show that scGPT and Geneformer carry similar geometric signal and that the previously apparent architectural gap was largely a representation-construction artifact.
+    \item We show that the geometric signal carries directional information through asymmetric features and provides incremental value on top of expression-based GRN inference, supporting a concrete role in multi-evidence edge re-ranking.
 \end{enumerate}
 
 
@@ -117,23 +117,25 @@ We first asked whether pairwise geometric relationships between gene vectors in 
 Using the kidney processed dataset as an initial test case (256 cells, 512-gene token budget), we extracted per-gene residual-stream embeddings at each of the 12 transformer layers and evaluated the incremental predictive value of cosine similarity for edge classification against 288 positive TRRUST edges and 864 matched negatives.
 
 Geometric features provided substantial and statistically significant incremental signal.
-The strongest effect was observed at layer~5, with $\DAURC = +0.064$ (bootstrap 95\% CI: $[0.018, 0.111]$; Table~\ref{tab:initial_signal}).
-This signal was robust across random cell-sampling seeds: across three independent samples (seeds 42, 43, 44), the best aggregate layer (L4) yielded a mean $\DAURC = +0.090$ with standard deviation 0.024 and all individual replicate confidence intervals above zero (range: $[0.064, 0.113]$).
+Reporting absolute metrics throughout, raw cosine similarity at the best single layer (L4) raised AUROC from a confound-only baseline of $0.505$ to $0.581$ ($\DAURC = +0.076$, bootstrap 95\% CI $[0.032, 0.117]$) and AUPRC from $0.260$ to $0.301$ ($\Delta\mathrm{AUPRC} = +0.041$; Table~\ref{tab:initial_signal}).
+The refined representations described below increased this further, with the multi-layer centered-cosine bundle reaching AUROC $0.627$ and AUPRC $0.369$.
+This signal was robust across random cell-sampling seeds: across three independent samples (seeds 42, 43, 44) the aggregate $\DAURC$ at the best layer was $+0.090$ with all individual replicate confidence intervals above zero.
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Initial geometric signal detection.} AUROC deltas (geometry-augmented minus baseline-only) for the kidney dataset across experimental configurations.
-All results use scGPT residual-stream cosine similarity as the geometric feature.
-CIs are 95\% bootstrap intervals.}
+\caption{\textbf{Geometric signal in the kidney domain, absolute and delta metrics.}
+Baseline-only versus geometry-augmented AUROC and AUPRC (scGPT, seed 42, 512-gene budget), for raw cosine, the refined single-layer metrics, and the multi-layer bundle.
+CIs are 95\% bootstrap intervals on $\DAURC$. Full per-layer panels are provided as supplementary material.}
 \label{tab:initial_signal}
 \small
-\begin{tabular}{lcccc}
+\begin{tabular}{lcccccc}
 \toprule
-\textbf{Configuration} & \textbf{Best Layer} & $\boldsymbol{\DAURC}$ & \textbf{95\% CI} & \textbf{Seeds} \\
+\textbf{Representation} & \textbf{Layer(s)} & \textbf{AUROC base} & \textbf{AUROC +geom} & $\boldsymbol{\DAURC}$ & \textbf{95\% CI} & $\boldsymbol{\Delta}$\textbf{AUPRC} \\
 \midrule
-Kidney (seed 42, 512 genes) & L5 & $+0.064$ & $[0.018, 0.111]$ & 1 \\
-Kidney (seed 42, 1024 genes) & L4 & $+0.049$ & $[0.004, 0.091]$ & 1 \\
-Kidney (3-seed aggregate) & L4 & $+0.090$ & all CI-low $> 0$ & 3 \\
+Raw cosine          & L4     & 0.505 & 0.581 & $+0.076$ & $[0.032, 0.117]$ & $+0.041$ \\
+Centered cosine     & L4     & 0.505 & 0.593 & $+0.088$ & $[0.041, 0.131]$ & $+0.053$ \\
+PCA-64 centered cos.& L4     & 0.505 & 0.603 & $+0.098$ & $[0.051, 0.144]$ & $+0.058$ \\
+Centered-cos.\ bundle & L0--11 & 0.505 & 0.627 & $+0.122$ & $[0.075, 0.165]$ & $+0.109$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -166,26 +168,26 @@ The immune domain showed consistent positive gains (aggregate mean $\DAURC = +0.
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Cross-domain heterogeneity and feature recovery.}
-Top panel: initial results using raw cosine similarity.
-Bottom panel: results after switching to centered cosine or PCA-projected centered cosine.
-All values are mean $\DAURC$ across 3 seeds with standard deviations.}
+\caption{\textbf{Cross-domain results under a unified, refined methodology.}
+Absolute baseline-only and geometry-augmented AUROC, $\DAURC$ and $\Delta$AUPRC for each domain (scGPT, seed 42, edge-level CV), applying the same set of representations to every domain including the initially analysed ones.
+Raw cosine is near-null in lung and external lung; centered cosine, PCA projection and the multi-layer bundle recover signal in all domains.
+$\dagger$ marks rows whose 95\% bootstrap CI on $\DAURC$ excludes zero.}
 \label{tab:cross_domain}
 \small
-\begin{tabular}{llcccl}
+\begin{tabular}{llcccc}
 \toprule
-\textbf{Domain} & \textbf{Metric} & \textbf{Best Layer} & \textbf{Mean $\boldsymbol{\DAURC}$} & \textbf{Std} & \textbf{CI Status} \\
+\textbf{Domain} & \textbf{Representation} & \textbf{AUROC base} & \textbf{AUROC +geom} & $\boldsymbol{\DAURC}$ & $\boldsymbol{\Delta}$\textbf{AUPRC} \\
 \midrule
-\multicolumn{6}{l}{\textit{Raw cosine similarity}} \\
-Kidney & cosine & L4 & $+0.090$ & 0.024 & all $> 0$ \\
-Immune & cosine & L0 & $+0.033$ & 0.007 & all $> 0$ \\
-Lung & cosine & L0 & $+0.001$ & 0.001 & none $> 0$ \\
-External lung & cosine & L3 & $+0.002$ & 0.001 & 0.67 $> 0$ \\
-\midrule
-\multicolumn{6}{l}{\textit{Centered cosine (lung recovery)}} \\
-Lung & centered cosine & L0 & $+0.010$ & 0.002 & all $> 0$ \\
-Lung & pca64\_cc & L0 & $+0.013$ & --- & CI $[0.008, 0.018]$ \\
-External lung & pca64\_cc & L3 & $+0.003$ & --- & CI $[0.000, 0.006]$ \\
+Kidney        & raw cosine (L4)        & 0.505 & 0.581 & $+0.076^\dagger$ & $+0.041$ \\
+Kidney        & centered-cos.\ bundle  & 0.505 & 0.627 & $+0.122^\dagger$ & $+0.109$ \\
+Immune        & raw cosine (L0)        & 0.649 & 0.673 & $+0.024^\dagger$ & $+0.026$ \\
+Immune        & centered-cos.\ bundle  & 0.649 & 0.691 & $+0.042^\dagger$ & $+0.030$ \\
+Lung          & raw cosine (L10)       & 0.575 & 0.576 & $+0.001$         & $+0.002$ \\
+Lung          & PCA-64 centered cos.\ (L0) & 0.575 & 0.588 & $+0.013^\dagger$ & $+0.012$ \\
+Lung          & centered-cos.\ bundle  & 0.575 & 0.603 & $+0.028^\dagger$ & $+0.022$ \\
+External lung & raw cosine (L3)        & 0.581 & 0.582 & $+0.001$         & $+0.002$ \\
+External lung & PCA-64 centered cos.\ (L0) & 0.581 & 0.591 & $+0.010^\dagger$ & $+0.009$ \\
+External lung & centered-cos.\ bundle  & 0.581 & 0.607 & $+0.027^\dagger$ & $+0.036$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -207,9 +209,8 @@ Centered-cosine similarity---which first subtracts the global mean gene vector b
 Across three seeds, centered cosine yielded a lung $\DAURC$ of $+0.010$ (std 0.002) with all replicate confidence intervals above zero.
 Both null controls confirmed the signal: geometry-shuffle $p < 1/60$, label-permutation $p < 1/40$.
 
-Low-rank PCA projection further improved stability.
-The \texttt{pca64\_centered\_cosine} variant yielded the strongest lung result ($\DAURC = +0.013$, CI $[0.008, 0.018]$) and produced the first significant external-lung signal ($\DAURC = +0.003$, CI $[0.000, 0.006]$).
-In the kidney domain, PCA variants also improved absolute performance (best: \texttt{pca32\_centered\_cosine}, $\DAURC = +0.099$, CI $[0.056, 0.146]$).
+Low-rank PCA projection further improved stability, and the multi-layer centered-cosine bundle gave the strongest result in every domain (Table~\ref{tab:cross_domain}): lung AUROC $0.575 \to 0.603$ ($\DAURC = +0.028$) and external lung $0.581 \to 0.607$ ($\DAURC = +0.027$), both with bootstrap CIs excluding zero.
+Critically, the same refined pipeline applied to the kidney and immune domains \emph{also} improved on raw cosine there (kidney $\DAURC$ $+0.076 \to +0.122$; immune $+0.024 \to +0.042$), so the refined methodology is a uniform improvement rather than a lung-specific rescue.
 
 Raw cosine similarity is dominated by the global offset structure of the representation space: genes with large norm vectors tend to have high pairwise cosine similarity regardless of regulatory relationships.
 Centering removes this global offset, isolating the directional component that carries regulatory information.
@@ -260,9 +261,9 @@ CD8$^+$ T cells show the strongest signal, consistent with their dramatic transc
 \label{fig:celltype}
 \end{figure}
 
-The gradient of signal strength across immune cell types is biologically plausible.
-CD8$^+$ T cells undergo dramatic transcriptional reprogramming upon activation, involving well-characterized TF cascades (T-bet, Eomes, Blimp-1) that produce strong, coordinated expression programs likely to leave clear geometric imprints \cite{kaech2012transcription}.
-CD4$^+$ T cells have somewhat more diverse and context-dependent regulatory programs, while B cells may have regulatory programs less prominently represented in the scGPT training data.
+The gradient of signal strength across immune cell types is consistent with a biologically plausible hypothesis, which we offer as interpretation rather than as an established mechanism.
+CD8$^+$ T cells undergo dramatic transcriptional reprogramming upon activation, involving well-characterized TF cascades (T-bet, Eomes, Blimp-1) that produce strong, coordinated expression programs that \emph{could} leave clearer geometric imprints \cite{kaech2012transcription}; CD4$^+$ T cells have more diverse, context-dependent programs, and B-cell regulatory programs may be less prominently represented.
+This account is compatible with the observed ordering but is not tested directly here; alternative explanations (e.g.\ differences in cell-type abundance, library complexity, or TRRUST annotation density across lineages) are not excluded.
 
 \paragraph{Donor stratification.}
 Within the immune domain, we evaluated signal consistency across the three largest donors (TSP14: 4,513 cells; TSP25: 3,261 cells; TSP21: 3,223 cells).
@@ -280,10 +281,10 @@ Both null controls yielded $p < 0.001$ across all domains.
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Cross-model comparison: scGPT vs.\ Geneformer geometric signal.}
-scGPT values use pca64\_centered\_cosine at the best single layer.
-Geneformer values use centered cosine on token embeddings.
-The gap column shows Geneformer minus scGPT $\DAURC$ on shared edges.}
+\caption{\textbf{Cross-model comparison under the original asymmetric extraction.}
+scGPT values use pca64\_centered\_cosine at the best single layer; Geneformer values use centered cosine on its static token embedding layer.
+The gap column shows Geneformer minus scGPT $\DAURC$ on shared edges.
+This comparison is asymmetric (multi-layer residual stream for scGPT versus a single embedding layer for Geneformer); the matched per-layer extraction in Table~\ref{tab:crossmatched} largely eliminates the apparent gap.}
 \label{tab:geneformer}
 \small
 \begin{tabular}{lccccc}
@@ -408,6 +409,129 @@ At threshold $\tau = 0.15$ in the immune domain, the compact model improved by $
 While the compact model improved ranking (AUROC), its raw probability outputs showed systematic miscalibration ($\ECE \approx 0.18$--$0.22$).
 Isotonic calibration substantially reduced ECE (to $0.003$--$0.031$) with a modest AUROC cost ($-0.004$ to $-0.012$).
 
+\subsection*{Leakage-resistant cross-validation delimits the geometric signal}
+
+Edge-level random cross-validation can permit gene-identity carryover: the same transcription factor or target gene may appear in both training and test folds, allowing a classifier to exploit gene identity rather than genuine pairwise structure.
+To stress-test out-of-entity generalization, we re-evaluated the refined multi-layer bundle under three grouped splits (Table~\ref{tab:grouped}): leave-TF-out (no TF shared across folds), leave-target-out (no target shared), and leave-both-out (neither a TF nor a target shared).
+
+The geometric signal was fully robust to leave-TF-out and leave-target-out cross-validation; the incremental $\DAURC$ under these splits was comparable to, and in several cases larger than, the edge-level estimate (e.g.\ kidney leave-TF-out $\DAURC = +0.135$; immune $+0.074$).
+Under the stricter \emph{leave-both-out} split, however, the signal collapsed to near-zero ($\DAURC = +0.001$ to $+0.003$).
+In this regime the confound-only baseline itself dropped to AUROC $\approx 0.50$, indicating that when no gene identity is shared the edge-classification task becomes close to intractable for all feature sets.
+A small positive residual persisted with a bootstrap confidence interval above zero in lung and external lung, but not in kidney or immune.
+We therefore interpret leave-both-out performance as the honest ceiling of fully out-of-entity generalization: the geometric signal is a within-gene-universe re-ranking aid, not a mechanism for predicting regulatory relationships among entirely unseen genes.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Geometric signal under grouped, leakage-resistant cross-validation.}
+$\DAURC$ for the refined centered-cosine multi-layer bundle (L0--11) under edge-level CV and three grouped splits.
+Leave-both-out is the strictest test (no TF and no target shared between folds).}
+\label{tab:grouped}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Domain} & \textbf{Edge CV} & \textbf{Leave-TF-out} & \textbf{Leave-target-out} & \textbf{Leave-both-out} \\
+\midrule
+Kidney        & $+0.122$ & $+0.135$ & $+0.116$ & $+0.003$ (n.s.) \\
+Immune        & $+0.042$ & $+0.074$ & $+0.031$ & $-0.000$ (n.s.) \\
+Lung          & $+0.028$ & $+0.021$ & $+0.025$ & $+0.0014$ (CI${}>0$) \\
+External lung & $+0.027$ & $+0.013$ & $+0.024$ & $+0.0016$ (CI${}>0$) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Robustness to negative-edge construction, multiplicity, and a confirmatory rerun}
+
+\paragraph{Harder negatives.}
+The matched random negatives used above are a permissive baseline.
+We regenerated the negative edge set under two harder protocols---degree-matched (negative TF/target matched to the positive edge's TRRUST degree bin) and expression-matched (matched to mean-expression and detection bins)---and repeated each draw eight times (Table~\ref{tab:negrobust}).
+The geometric signal was stable across re-draws (standard deviations $\le 0.042$) and did not weaken under harder negatives; in the lung domains degree-matched negatives \emph{increased} $\DAURC$ (lung $+0.009 \to +0.035$; external lung $+0.002 \to +0.021$) because they remove the confound shortcut that the expression baseline otherwise exploits.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Robustness to negative-edge construction.}
+Mean $\DAURC \pm$ standard deviation across eight independent negative-edge re-draws, using \texttt{pca64\_centered\_cosine} features at the best single layer with balanced 1:1 sampling.}
+\label{tab:negrobust}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Domain} & \textbf{Random} & \textbf{Degree-matched} & \textbf{Expression-matched} \\
+\midrule
+Kidney        & $+0.150 \pm 0.042$ & $+0.147 \pm 0.024$ & $+0.123 \pm 0.028$ \\
+Immune        & $+0.030 \pm 0.008$ & $+0.020 \pm 0.008$ & $+0.061 \pm 0.010$ \\
+Lung          & $+0.009 \pm 0.002$ & $+0.035 \pm 0.003$ & $+0.010 \pm 0.003$ \\
+External lung & $+0.002 \pm 0.001$ & $+0.021 \pm 0.002$ & $+0.004 \pm 0.003$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Uncertainty decomposition and multiplicity.}
+Decomposing the variance of the bundle $\DAURC$ showed that across-seed variability (cell sampling and negative-edge draw) accounts for 64--83\% of the total, exceeding the within-run edge-bootstrap component; reported confidence intervals are therefore widened to include the across-seed term.
+Across the full grid of 148 domain $\times$ layer $\times$ metric comparisons, 64 reached raw $p < 0.05$ and 42 survived Benjamini--Hochberg FDR control at $q < 0.05$, including all headline bundle and PCA-projected results.
+
+\paragraph{Confirmatory rerun.}
+Because representation choices (metric, PCA dimension, layer bundle) were selected during exploratory analysis on kidney and immune, we froze a single pre-specified pipeline---centered-cosine similarity, multi-layer bundle L0--11, logistic-regression stacking, no per-domain tuning---and applied it to the held-out confirmatory domains (lung, external lung) across three seeds.
+The frozen pipeline yielded a positive, CI-backed effect under edge-level CV (lung $\DAURC = +0.032 \pm 0.006$, external lung $+0.027 \pm 0.005$; all three seeds with bootstrap CIs above zero) and a small positive effect under leave-both-out ($+0.0016$ and $+0.0009$).
+
+\subsection*{Comparable cross-model extraction confirms the gap was a construction artifact}
+
+The cross-model comparison above represented scGPT by multi-layer residual-stream features but Geneformer by its single static embedding layer.
+To remove this asymmetry, we extracted Geneformer per-layer residual-stream activations from real forward passes over single cells (18-layer model, official rank-value tokenization) and applied the \emph{identical} geometric pipeline to both models (Table~\ref{tab:crossmatched}).
+Under matched multi-layer extraction the apparent Geneformer advantage largely disappeared: scGPT was ahead in kidney ($\DAURC$ gap $-0.018$), and the remaining gaps were small ($+0.009$ to $+0.023$).
+This directly confirms that most of the originally reported gap was a representation-construction artifact of comparing scGPT multi-layer features to a single Geneformer layer, rather than evidence of architectural superiority.
+Geneformer retained a modest edge in the lung domains, which we now describe as a minor, quantified difference rather than a general advantage.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Cross-model comparison under matched per-layer extraction.}
+$\DAURC$ for the centered-cosine multi-layer bundle applied identically to scGPT and to Geneformer residual-stream activations.}
+\label{tab:crossmatched}
+\small
+\begin{tabular}{lccc}
+\toprule
+\textbf{Domain} & \textbf{scGPT} & \textbf{Geneformer} & \textbf{Gap (GF$-$scGPT)} \\
+\midrule
+Kidney        & $+0.122$ & $+0.104$ & $-0.018$ \\
+Immune        & $+0.042$ & $+0.057$ & $+0.015$ \\
+Lung          & $+0.028$ & $+0.037$ & $+0.009$ \\
+External lung & $+0.027$ & $+0.050$ & $+0.023$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Asymmetric geometric features carry directional information}
+
+The geometric metrics used above (cosine, centered cosine, $L_2$, dot product) are symmetric in the source and target gene and therefore cannot, by construction, distinguish a TF$\rightarrow$target edge from its reverse.
+We tested whether \emph{asymmetric} per-layer features---signed differences in vector norm and mean coordinate between the two genes---carry directional information.
+Given a known TRRUST edge presented as an unordered pair, a classifier on these antisymmetric features predicted which gene is the transcription factor at AUROC $0.80$--$0.90$ across the four domains (pair-grouped cross-validation, so a pair and its reverse never split across folds).
+A complementary gene-level task---ranking a gene's propensity to act as a TF versus a target-only gene from its embedding---reached AUROC $0.74$--$0.78$.
+The directional signal thus operates by detecting per-gene transcription-factor propensity from embedding geometry: although the symmetric similarity metrics that form our main analysis are direction-blind, the residual stream does encode orientation-relevant structure that asymmetric features can recover.
+
+\subsection*{The geometric signal complements expression-based GRN inference}
+
+To test practical utility directly, we asked whether the geometric signal adds value on top of established expression-based GRN inference.
+We computed two expression-based edge scores on each domain's single-cell matrix---absolute Pearson co-expression and GENIE3-style random-forest TF$\rightarrow$target importance---and compared a confound-plus-GRN model against a confound-plus-GRN-plus-geometry model (Table~\ref{tab:grn}).
+Adding the geometric signal improved AUROC by $+0.085$ (kidney), $+0.028$ (immune), $+0.028$ (lung) and $+0.023$ (external lung) under edge-level CV, with all bootstrap confidence intervals excluding zero; under leave-both-out the increment was $\approx +0.001$, consistent with the grouped-CV ceiling.
+Used for ranking, the geometry-augmented model enriched true edges $1.6$--$2.1\times$ over prevalence in the top 50 candidates per domain.
+The geometric signal is therefore a usable orthogonal evidence channel for re-ranking candidate edges within a known gene universe, while its modest absolute AUROC ($0.60$--$0.69$) means it is not a stand-alone GRN caller.
+
+\begin{table}[t]
+\centering
+\caption{\textbf{Geometric signal on top of expression-based GRN inference.}
+AUROC for a confound + expression-GRN model and a confound + GRN + geometry model under edge-level CV. The GRN score combines Pearson co-expression and GENIE3-style importance. $\Delta$ is the incremental value of the geometric signal.}
+\label{tab:grn}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Domain} & \textbf{Baseline+GRN} & \textbf{Baseline+GRN+Geometry} & $\boldsymbol{\Delta}$ & \textbf{95\% CI} \\
+\midrule
+Kidney        & 0.540 & 0.625 & $+0.085$ & $[+0.043, +0.130]$ \\
+Immune        & 0.670 & 0.698 & $+0.028$ & $[+0.011, +0.046]$ \\
+Lung          & 0.576 & 0.604 & $+0.028$ & $[+0.021, +0.035]$ \\
+External lung & 0.588 & 0.611 & $+0.023$ & $[+0.017, +0.029]$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection*{Negative and mixed findings}
 
 \paragraph{Lung tissue remained challenging.}
@@ -461,22 +585,27 @@ This distinction is consistent with the transformer architecture's design: atten
 
 \subsection*{Implications for gene regulatory network inference}
 
-Our results suggest a concrete role for foundation model geometry in GRN inference pipelines.
-We envision three practical applications:
+Our results support a concrete but bounded role for foundation model geometry in GRN inference pipelines.
+We tested this directly: adding the geometric signal on top of expression-based GRN inference (GENIE3-style tree importance and co-expression) improved AUROC by $+0.023$ to $+0.085$ across domains under edge-level cross-validation, with all bootstrap confidence intervals excluding zero (Table~\ref{tab:grn}).
+Used as a ranking score, the geometry-augmented model enriched true edges $1.6$--$2.1\times$ over prevalence among the top 50 candidates per domain.
+Three practical uses follow, each with the caveat that the signal operates within a known gene universe and not for de novo prediction among unseen genes:
 \begin{enumerate}[leftmargin=2em]
-    \item \textbf{Edge re-ranking:} Geometric scores can complement expression-based methods for re-ranking candidate regulatory edges.
-    \item \textbf{Hypothesis prioritization:} For experimental follow-up (e.g., CRISPRi screens), geometric scores provide orthogonal evidence beyond expression correlation.
-    \item \textbf{Context-dependent assessment:} Because foundation model representations are conditioned on cellular context, geometric features can capture tissue-specific regulatory relationships.
+    \item \textbf{Edge re-ranking:} geometric scores measurably complement expression-based methods when re-ranking candidate regulatory edges.
+    \item \textbf{Hypothesis prioritization:} for experimental follow-up (e.g.\ CRISPRi screens), geometric scores provide an orthogonal evidence channel, with quantified top-$k$ enrichment.
+    \item \textbf{Context-dependent assessment:} because foundation model representations are conditioned on cellular context, geometric features can capture tissue-specific regulatory structure.
 \end{enumerate}
+Directionality, which symmetric similarity metrics cannot provide, can be partially recovered: asymmetric per-layer features predict edge orientation at AUROC $0.80$--$0.90$, so a practical pipeline could combine a symmetric score for edge presence with an asymmetric score for orientation.
 
 \subsection*{Limitations}
 
 Several limitations should be considered.
 First, TRRUST provides literature-curated edges that are biased toward well-studied genes and may contain false positives and false negatives.
-Second, effect sizes are modest in absolute terms, particularly in lung tissues ($\DAURC \approx +0.010$ to $+0.017$).
-Third, the analysis is retrospective; prospective validation on independent cohorts would strengthen the conclusions.
-Fourth, biological causality is not established---geometric proximity correlates with regulatory relationships but does not demonstrate mechanistic understanding.
-Fifth, computational cost is non-trivial, though extraction is a one-time cost per model and dataset.
+Second, effect sizes are modest in absolute terms: geometry-augmented AUROC reaches only $0.60$--$0.69$, so the signal is statistical enrichment rather than a stand-alone regulatory classifier.
+Third, and most importantly, the signal is bounded by the entities seen in training: it is robust to leave-TF-out and leave-target-out cross-validation but collapses to near-zero under leave-both-out evaluation, so it supports re-ranking of candidate edges within a known gene universe rather than de novo prediction among entirely unseen genes.
+Fourth, the analysis is retrospective, and biological causality is not established---geometric proximity correlates with curated regulatory relationships but does not demonstrate mechanistic understanding; the cell-type interpretation in particular is offered as a hypothesis.
+Fifth, although a Benjamini--Hochberg correction across the full grid of comparisons leaves the headline results significant, the study involves many tissue/layer/metric/model contrasts and the exploratory analyses should be read as hypothesis-generating.
+Sixth, the cross-model comparison is sensitive to extraction choices; we mitigated this with a matched per-layer extraction for both models, but tokenization and cell-sampling differences between scGPT and Geneformer remain.
+Seventh, computational cost is non-trivial, though extraction is a one-time cost per model and dataset.
 
 
 % ============================================================================
@@ -485,11 +614,11 @@ Fifth, computational cost is non-trivial, though extraction is a one-time cost p
 \section*{Conclusions}
 
 We have presented a systematic investigation of whether residual-stream geometry in single-cell foundation models encodes gene regulatory information.
-Through analysis spanning four tissue contexts, two foundation model architectures, multiple geometric metrics, and comprehensive null controls, we establish three principal findings.
+Through analysis spanning four tissue contexts, two foundation model architectures, multiple geometric metrics, comprehensive null controls, grouped and confirmatory cross-validation, and a comparison against expression-based GRN inference, we establish three principal findings.
 
-First, residual-stream geometry carries genuine incremental signal for regulatory edge classification beyond expression-level confounds, with effect sizes strongest in tissues and cell types with active transcriptional programs.
-Second, extraction of this signal is critically dependent on methodological choices---particularly centered-cosine similarity, multi-layer bundling, and seed ensembling---and initial negative results in some domains were largely methodological rather than biological.
-Third, two independently trained models encode partially complementary regulatory information that can be productively combined through stacked modeling, yielding consistent improvements across all tested domains under leakage-resistant evaluation.
+First, residual-stream geometry carries incremental signal for retrospective regulatory edge prioritization beyond expression-level confounds; the effect survives multiplicity correction, harder negative-edge constructions, and leave-TF-out and leave-target-out cross-validation, but it is bounded---absolute AUROC is modest and the signal collapses under fully out-of-entity (leave-both-out) evaluation.
+Second, extraction of this signal is critically dependent on methodological choices---particularly centered-cosine similarity, multi-layer bundling, and seed ensembling---and initial negative results in some domains were largely methodological rather than biological; under a comparable per-layer extraction the two foundation models carry similar geometric signal, and the previously apparent architectural gap was largely a representation-construction artifact.
+Third, the geometric signal complements expression-based GRN inference and carries partial directional information through asymmetric features, supporting a concrete role as an orthogonal evidence channel in multi-evidence edge re-ranking.
 
 These findings advance our understanding of what single-cell foundation models learn about gene regulation and provide a practical framework for leveraging that knowledge in GRN inference.
 As foundation models continue to grow in scale and sophistication, systematic geometric analysis of their representations offers a promising path toward more reliable computational predictions of gene regulatory architecture.
@@ -565,7 +694,13 @@ All models included baseline confound features: mean expression, variance, and d
 
 \paragraph{Model comparison.}
 For each domain, we compared: (1) \textbf{Baseline-only}: logistic regression on six confound features; (2) \textbf{Baseline + geometry}: logistic regression adding geometric features to the baseline.
-The primary metric is $\DAURC$: the AUROC difference between the geometry-augmented and baseline-only models.
+The primary metric is $\DAURC$: the AUROC difference between the geometry-augmented and baseline-only models; we additionally report absolute AUROC, absolute AUPRC, $\Delta$AUPRC and precision/recall at fixed cut-offs.
+
+\paragraph{Implementation detail.}
+All classifiers are \texttt{scikit-learn} pipelines consisting of \texttt{StandardScaler} followed by \texttt{LogisticRegression} (L2 penalty, \texttt{lbfgs} solver, \texttt{class\_weight=balanced}, \texttt{max\_iter=2000}); features are standardized within each training fold only.
+PCA-projected features use randomized SVD on the globally centered per-layer gene-embedding matrix, retaining $k \in \{32, 64, 128\}$ components fitted within training data.
+For scGPT, 256 cells were sampled per domain (seeds 42/43/44) with a 512-gene token budget; per-gene layer embeddings are the mean of the token's residual-stream vector over cells in which the gene appears.
+Gene mapping uses each tissue's expressed-gene universe; edges are retained only when both genes have non-zero embedding coverage and finite confound features.
 
 \subsection*{Evaluation protocol}
 
@@ -586,6 +721,48 @@ This null tests whether the geometric feature identity, not merely the presence 
 \subsection*{Compact stacking model}
 
 The compact combiner integrates geometric signals from both foundation models through a stacked architecture: (1) train branch model A (baseline + scGPT) and B (baseline + Geneformer); (2) generate inner-fold OOF probability predictions; (3) train meta-model on baseline features + OOF predictions; (4) evaluate on held-out outer folds.
+
+\subsection*{Grouped, leakage-resistant cross-validation}
+
+To test out-of-entity generalization beyond edge-level random splits, we used three grouped cross-validation schemes.
+\emph{Leave-TF-out} and \emph{leave-target-out} use \texttt{GroupKFold} ($k=5$) keyed by the source TF or the target gene respectively, so that no TF (respectively target) appears in both training and test folds.
+\emph{Leave-both-out} partitions TFs and targets independently into $b=4$ random blocks; for block $k$ the test fold is the set of edges whose TF and target both fall in block $k$, and the training fold is the set of edges whose TF and target both fall outside block $k$; crossover edges are excluded from that fold.
+For grouped schemes, bootstrap resampling is performed at the level of gene groups (cluster bootstrap) rather than individual edges.
+
+\subsection*{Negative-edge sampling and robustness}
+
+The primary negative set is sampled once by uniform rejection sampling of (source-pool TF, target-pool gene) pairs excluding positives, at a 3:1 ratio (kidney) or 1:1 ratio (cross-domain).
+For the robustness analysis we additionally generated negatives under two harder protocols at a balanced 1:1 ratio: \emph{degree-matched}, in which each negative's TF and target are drawn from the same TRRUST out-degree / in-degree quantile bin (5 bins) as the corresponding positive; and \emph{expression-matched}, matched instead on mean-expression and detection-frequency bins.
+Each protocol was repeated for eight independent random draws, and we report the mean and standard deviation of $\DAURC$, AUROC and AUPRC across draws.
+
+\subsection*{Uncertainty decomposition and multiplicity}
+
+We decomposed the variance of $\DAURC$ into a within-run component (from the edge or cluster bootstrap) and an across-seed component (the standard deviation of the point estimate across cell-sampling seeds 42/43/44, which also varies the negative draw).
+Reported confidence intervals are widened to incorporate the across-seed term.
+Across the full grid of domain $\times$ layer $\times$ metric comparisons, one-sided $p$-values (normal approximation from the bootstrap interval) were corrected for multiplicity with the Benjamini--Hochberg procedure at $q < 0.05$.
+
+\subsection*{Exploratory versus confirmatory analyses}
+
+Representation choices (geometric metric, PCA dimension, layer bundle, seed-aggregation strategy) were selected during exploratory analysis on the kidney and immune domains.
+For the confirmatory evaluation we froze a single pre-specified pipeline---centered-cosine similarity, multi-layer bundle L0--11, logistic-regression stacking, with no per-domain tuning---and applied it once to the held-out confirmatory domains (lung and external lung) across three seeds.
+
+\subsection*{Geneformer residual-stream extraction}
+
+For the matched cross-model comparison we extracted Geneformer residual-stream activations analogously to scGPT.
+We used the pre-trained Geneformer model (\texttt{ctheodoris/Geneformer}; 18-layer transformer, hidden dimension 1{,}152).
+Each sampled cell was tokenized with the official rank-value encoding: counts were normalized to a fixed total, divided by corpus gene medians, and ranked; the top 2{,}048 genes were wrapped in the model's \texttt{<cls>}/\texttt{<eos>} tokens.
+Per-layer hidden states were captured for all 18 layers and averaged across cells into per-gene embeddings, after which the identical geometric feature pipeline was applied to both models.
+
+\subsection*{Directionality analysis}
+
+Because the geometric similarity metrics are symmetric in (source, target), we tested directionality with antisymmetric per-layer features---signed differences in vector norm, squared norm, and mean coordinate between the two genes---whose sign flips when the pair is reversed.
+For each curated edge we created a correctly oriented example (label 1) and its reverse (label 0) and trained a logistic-regression classifier under \texttt{GroupKFold} keyed by the unordered pair, so that a pair and its reverse never separate across folds.
+A complementary gene-level task classified TF genes versus target-only genes from PCA-reduced embeddings.
+
+\subsection*{Ensembling with expression-based GRN inference}
+
+To assess incremental value over established GRN inference, we computed two expression-based edge scores on each domain's single-cell matrix restricted to the TRRUST gene universe: the absolute Pearson correlation between TF and target expression (co-expression), and a GENIE3-style \cite{huynh2010inferring} score in which a random-forest regressor (40 trees, maximum depth 8) predicts each target gene's expression from all candidate TFs and the TF$\rightarrow$target feature importance is the edge score.
+We then compared a confound + GRN logistic-regression model against a confound + GRN + geometry model under edge-level and leave-both-out cross-validation.
 
 
 % ============================================================================
