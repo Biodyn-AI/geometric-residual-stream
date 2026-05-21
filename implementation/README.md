@@ -415,9 +415,15 @@ conda run -n subproject38-geo-v2 python implementation/scripts/run_wp9_grn_ensem
 
 # WP10  practical-utility / top-k retrieval evaluation
 conda run -n subproject38-geo-v2 python implementation/scripts/run_wp10_practical_utility.py
+
+# WP12  absolute AUROC/AUPRC for the cell-type stratification table
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp12_celltype_absolute.py
+
+# WP13  compact stacking model under grouped (leave-both-out) CV
+conda run -n subproject38-geo-v2 python implementation/scripts/run_wp13_compact_grouped.py
 ```
 
 Outputs land in `implementation/outputs/cycle43_grouped_cv` ...
-`cycle51_geneformer_residual`. Consolidated summary:
+`cycle53_compact_grouped`. Consolidated summary:
 `reports/revision_cycles43-51_new_experiments.md`. Point-by-point reviewer
-response: `paper/response_to_reviewers.md`.
+response: `paper/response_to_reviewers.md` (and compiled `response_to_reviewers.pdf`).

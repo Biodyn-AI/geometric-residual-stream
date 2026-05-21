@@ -222,30 +222,27 @@ To assess whether the geometric signal reflects genuine regulatory biology rathe
 
 \paragraph{Cell-type stratification.}
 Within the immune domain, we evaluated geometric signal separately in three major cell populations using \texttt{pca64\_centered\_cosine} at L0 (Table~\ref{tab:celltype}).
-The results revealed striking cell-type specificity (Figure~\ref{fig:celltype}): CD8$^+$ T cells showed the strongest signal ($\DAURC = +0.067$, CI $[0.043, 0.093]$), followed by CD4$^+$ T cells ($+0.040$, CI $[0.016, 0.068]$) and B cells ($+0.034$, CI $[0.018, 0.052]$).
-In the lung domain, macrophages showed the strongest signal ($+0.008$, CI $[0.003, 0.014]$), while alveolar type~II cells were weaker ($+0.006$, CI including zero) and alveolar type~I cells showed no detectable signal.
+The results revealed striking cell-type specificity (Figure~\ref{fig:celltype}): CD8$^+$ T cells showed the strongest signal (AUROC $0.561 \to 0.627$, $\DAURC = +0.066$, CI $[0.038, 0.093]$), followed by CD4$^+$ T cells ($\DAURC = +0.042$, CI $[0.018, 0.066]$) and B cells ($+0.034$, CI $[0.015, 0.056]$).
+In the lung domain, macrophages showed the strongest signal ($+0.009$, CI $[0.003, 0.014]$), while alveolar type~II cells were weaker ($+0.006$, CI including zero) and alveolar type~I cells showed no detectable signal.
 
 \begin{table}[t]
 \centering
-\caption{\textbf{Cell-type stratified geometric signal.}
-AUROC deltas using \texttt{pca64\_centered\_cosine} features.
+\caption{\textbf{Cell-type stratified geometric signal, absolute and delta metrics.}
+Baseline-only versus geometry-augmented AUROC and AUPRC using \texttt{pca64\_centered\_cosine} features at layer~0, with 95\% bootstrap CIs on $\DAURC$.
 Immune cell types show consistent positive signal; lung cell types show heterogeneous effects.}
 \label{tab:celltype}
 \small
-\begin{tabular}{llccl}
+\begin{tabular}{llccccc}
 \toprule
-\textbf{Domain} & \textbf{Cell Type} & $\boldsymbol{\DAURC}$ & \textbf{95\% CI} & \textbf{Significant?} \\
+\textbf{Domain} & \textbf{Cell Type} & \textbf{AUROC base} & \textbf{AUROC +geom} & $\boldsymbol{\DAURC}$ & \textbf{95\% CI} & $\boldsymbol{\Delta}$\textbf{AUPRC} \\
 \midrule
-Immune & CD8$^+$ T cell & $+0.067$ & $[0.043, 0.093]$ & Yes \\
-Immune & CD4$^+$ T cell & $+0.040$ & $[0.016, 0.068]$ & Yes \\
-Immune & B cell & $+0.034$ & $[0.018, 0.052]$ & Yes \\
+Immune & CD8$^+$ T cell    & 0.561 & 0.627 & $+0.066$ & $[0.038, 0.093]$  & $+0.049$ \\
+Immune & CD4$^+$ T cell    & 0.586 & 0.628 & $+0.042$ & $[0.018, 0.066]$  & $+0.027$ \\
+Immune & B cell            & 0.597 & 0.631 & $+0.034$ & $[0.015, 0.056]$  & $+0.050$ \\
 \midrule
-Lung & Macrophage & $+0.008$ & $[0.003, 0.014]$ & Yes \\
-Lung & Alveolar type II & $+0.006$ & $[-0.002, 0.014]$ & No \\
-Lung & Alveolar type I & $-0.001$ & $[-0.005, 0.003]$ & No \\
-\midrule
-\multicolumn{2}{l}{Immune aggregate} & $+0.047$ & --- & 3/3 \\
-\multicolumn{2}{l}{Lung aggregate} & $+0.005$ & --- & 1/3 \\
+Lung   & Macrophage        & 0.594 & 0.602 & $+0.009$ & $[0.003, 0.014]$  & $+0.011$ \\
+Lung   & Alveolar type II  & 0.565 & 0.571 & $+0.006$ & $[-0.002, 0.013]$ & $+0.008$ \\
+Lung   & Alveolar type I   & 0.553 & 0.552 & $-0.000$ & $[-0.004, 0.003]$ & $+0.000$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -287,15 +284,18 @@ The gap column shows Geneformer minus scGPT $\DAURC$ on shared edges.
 This comparison is asymmetric (multi-layer residual stream for scGPT versus a single embedding layer for Geneformer); the matched per-layer extraction in Table~\ref{tab:crossmatched} largely eliminates the apparent gap.}
 \label{tab:geneformer}
 \small
-\begin{tabular}{lccccc}
+\begin{tabular}{lcccccc}
 \toprule
-\textbf{Domain} & \textbf{scGPT} & \textbf{Geneformer} & \textbf{Gap} & \textbf{Edge $\rho$} & \textbf{GF Nulls} \\
+\textbf{Domain} & \multicolumn{3}{c}{\textbf{scGPT (pca64 centered cos.)}} & \multicolumn{3}{c}{\textbf{Geneformer (centered cos., embedding)}} \\
+ & \textbf{base} & \textbf{+geom} & $\boldsymbol{\DAURC}$ & \textbf{base} & \textbf{+geom} & $\boldsymbol{\DAURC}$ \\
 \midrule
-Immune & $+0.028$ & $+0.050$ & $+0.023$ & 0.476 & $p < 0.001$ \\
-Lung & $+0.013$ & $+0.026$ & $+0.013$ & 0.480 & $p < 0.001$ \\
-External lung & $+0.003$ & $+0.026$ & $+0.023$ & 0.467 & $p < 0.001$ \\
+Immune        & 0.649 & 0.677 & $+0.028$ & 0.657 & 0.705 & $+0.048$ \\
+Lung          & 0.575 & 0.588 & $+0.013$ & 0.591 & 0.630 & $+0.039$ \\
+External lung & 0.581 & 0.591 & $+0.010$ & 0.576 & 0.622 & $+0.046$ \\
 \bottomrule
 \end{tabular}
+\par\smallskip
+\footnotesize Edge-level score correlations between the two models: $\rho \approx 0.48$ (immune), $0.48$ (lung), $0.47$ (external lung). Geneformer null controls: $p < 0.001$ in every domain. All AUROC values are absolute.
 \end{table}
 
 The fact that two independently trained models---with different architectures, tokenization strategies, and training corpora---both produce significant geometric regulatory signal strongly argues against the possibility that this signal is an artifact of any single model's training procedure.
@@ -320,26 +320,25 @@ This produced a dramatic improvement in external lung, raising the scGPT $\DAURC
 \begin{table}[t]
 \centering
 \caption{\textbf{Representation repair through multi-layer bundling and seed ensembling.}
-All values are mean $\DAURC$ across 3 seeds (42, 43, 44) on the external-lung domain unless otherwise noted.
-The gap column shows Geneformer minus scGPT.
-Final row shows seed-ensemble bundled results.}
+$\DAURC$ values are means across 3 seeds (42, 43, 44); the AUROC columns give the absolute baseline-only and geometry-augmented scGPT AUROC (confound-only baseline $0.581$ in external lung, $0.649$ immune, $0.575$ lung).
+The gap column shows Geneformer minus scGPT $\DAURC$.}
 \label{tab:bundle}
 \small
-\begin{tabular}{lccc}
+\begin{tabular}{lccccc}
 \toprule
-\textbf{scGPT Representation} & \textbf{scGPT $\DAURC$} & \textbf{GF $\DAURC$} & \textbf{Gap (GF$-$scGPT)} \\
+\textbf{scGPT Representation} & \textbf{AUROC base} & \textbf{AUROC +geom} & \textbf{scGPT $\DAURC$} & \textbf{GF $\DAURC$} & \textbf{Gap} \\
 \midrule
-\multicolumn{4}{l}{\textit{External lung (mean across seeds)}} \\
-Single layer (L3) & $+0.003$ & $+0.025$ & $+0.025$ \\
-Bundle L1--4 & $+0.016$ & $+0.025$ & $+0.012$ \\
-Bundle L0--5 & $+0.023$ & $+0.025$ & $+0.005$ \\
-Bundle L0--11 & $+0.026$ & $+0.025$ & $+0.001$ \\
-Seed-ensemble L0--11 & $+0.026$ & $+0.024$ & $-0.001$ \\
+\multicolumn{6}{l}{\textit{External lung (mean across seeds)}} \\
+Single layer (L3)    & 0.581 & 0.584 & $+0.003$ & $+0.025$ & $+0.025$ \\
+Bundle L1--4         & 0.581 & 0.597 & $+0.016$ & $+0.025$ & $+0.012$ \\
+Bundle L0--5         & 0.581 & 0.604 & $+0.023$ & $+0.025$ & $+0.005$ \\
+Bundle L0--11        & 0.581 & 0.607 & $+0.026$ & $+0.025$ & $+0.001$ \\
+Seed-ensemble L0--11 & 0.581 & 0.607 & $+0.026$ & $+0.024$ & $-0.001$ \\
 \midrule
-\multicolumn{4}{l}{\textit{Cross-domain transfer (seed-ensemble L0--11)}} \\
-Immune & $+0.066$ & $+0.054$ & $-0.013$ \\
-Lung & $+0.039$ & $+0.028$ & $-0.011$ \\
-External lung & $+0.026$ & $+0.024$ & $-0.001$ \\
+\multicolumn{6}{l}{\textit{Cross-domain transfer (seed-ensemble L0--11)}} \\
+Immune        & 0.649 & 0.715 & $+0.066$ & $+0.054$ & $-0.013$ \\
+Lung          & 0.575 & 0.614 & $+0.039$ & $+0.028$ & $-0.011$ \\
+External lung & 0.581 & 0.607 & $+0.026$ & $+0.024$ & $-0.001$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -420,6 +419,10 @@ In this regime the confound-only baseline itself dropped to AUROC $\approx 0.50$
 A small positive residual persisted with a bootstrap confidence interval above zero in lung and external lung, but not in kidney or immune.
 We therefore interpret leave-both-out performance as the honest ceiling of fully out-of-entity generalization: the geometric signal is a within-gene-universe re-ranking aid, not a mechanism for predicting regulatory relationships among entirely unseen genes.
 
+We extended the same stress test to the compact stacking model, evaluated here with the matched scGPT and Geneformer residual-stream bundles.
+Under edge-level CV the compact model improved over the best single branch by $+0.003$ to $+0.014$ AUROC, consistent with Table~\ref{tab:compact}; under leave-both-out CV this advantage shrank to $\pm0.001$, mirroring the behaviour of the underlying geometric signal.
+The benefit of combining architectures is thus real for within-gene-universe re-ranking but does not extend to fully out-of-entity prediction.
+
 \begin{table}[t]
 \centering
 \caption{\textbf{Geometric signal under grouped, leakage-resistant cross-validation.}
@@ -483,19 +486,23 @@ Geneformer retained a modest edge in the lung domains, which we now describe as 
 \begin{table}[t]
 \centering
 \caption{\textbf{Cross-model comparison under matched per-layer extraction.}
-$\DAURC$ for the centered-cosine multi-layer bundle applied identically to scGPT and to Geneformer residual-stream activations.}
+Absolute baseline-only and geometry-augmented AUROC, and $\DAURC$, for the centered-cosine multi-layer bundle applied identically to scGPT and to Geneformer residual-stream activations.
+The gap column is the Geneformer minus scGPT $\DAURC$.}
 \label{tab:crossmatched}
 \small
-\begin{tabular}{lccc}
+\begin{tabular}{lcccccc}
 \toprule
-\textbf{Domain} & \textbf{scGPT} & \textbf{Geneformer} & \textbf{Gap (GF$-$scGPT)} \\
+\textbf{Domain} & \multicolumn{3}{c}{\textbf{scGPT}} & \multicolumn{2}{c}{\textbf{Geneformer}} & \textbf{Gap} \\
+ & \textbf{base} & \textbf{+geom} & $\boldsymbol{\DAURC}$ & \textbf{+geom} & $\boldsymbol{\DAURC}$ & (GF$-$scGPT) \\
 \midrule
-Kidney        & $+0.122$ & $+0.104$ & $-0.018$ \\
-Immune        & $+0.042$ & $+0.057$ & $+0.015$ \\
-Lung          & $+0.028$ & $+0.037$ & $+0.009$ \\
-External lung & $+0.027$ & $+0.050$ & $+0.023$ \\
+Kidney        & 0.505 & 0.627 & $+0.122$ & 0.618 & $+0.104$ & $-0.018$ \\
+Immune        & 0.649 & 0.691 & $+0.042$ & 0.702 & $+0.057$ & $+0.015$ \\
+Lung          & 0.575 & 0.603 & $+0.028$ & 0.618 & $+0.037$ & $+0.009$ \\
+External lung & 0.581 & 0.607 & $+0.027$ & 0.626 & $+0.050$ & $+0.023$ \\
 \bottomrule
 \end{tabular}
+\par\smallskip
+\footnotesize Geneformer baseline-only AUROC (matched 192-cell sample): $0.51$--$0.65$ across domains, comparable to scGPT.
 \end{table}
 
 \subsection*{Asymmetric geometric features carry directional information}

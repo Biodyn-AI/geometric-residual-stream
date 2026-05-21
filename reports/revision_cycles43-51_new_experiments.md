@@ -174,10 +174,44 @@ edges 1.6-2.1× over prevalence in the top 50 — concrete hypothesis-prioritisa
 value — but the modest absolute AUROC means it is an evidence channel for
 re-ranking, not a stand-alone GRN caller.
 
-## WP11 — Reproducibility (see `paper/implementation_details.md`, updated README)
+## WP11 — Reproducibility (updated Methods + README)
 
 Full hyperparameters, CV construction, PCA configuration, cell-sampling policy
 and aggregation specifics consolidated for repeatability.
+
+## WP12 — Absolute metrics for the cell-type table (cycle52)
+
+`run_wp12_celltype_absolute.py`. Adds absolute AUROC/AUPRC to the cell-type
+stratification table (`pca64_centered_cosine`, L0).
+
+| Domain | Cell type | AUROC base→+geom | dAUROC | dAUPRC |
+|---|---|---|---|---|
+| Immune | CD8+ T cell | 0.561→0.627 | +0.066 | +0.049 |
+| Immune | CD4+ T cell | 0.586→0.628 | +0.042 | +0.027 |
+| Immune | B cell | 0.597→0.631 | +0.034 | +0.050 |
+| Lung | Macrophage | 0.594→0.602 | +0.009 | +0.011 |
+| Lung | Alveolar type II | 0.565→0.571 | +0.006 (ns) | +0.008 |
+| Lung | Alveolar type I | 0.553→0.552 | −0.000 (ns) | +0.000 |
+
+## WP13 — Compact stacking model under grouped CV (cycle53)
+
+`run_wp13_compact_grouped.py`. Extends the leakage-resistant stress test to the
+compact stacking model (matched scGPT + Geneformer residual-stream bundles).
+
+| Domain | CV | best single | compact | Δ(compact−best) |
+|---|---|---|---|---|
+| kidney | edge | 0.617 | 0.620 | +0.003 |
+| kidney | leave-both | 0.490 | 0.488 | −0.002 |
+| immune | edge | 0.717 | 0.731 | +0.014 |
+| immune | leave-both | 0.519 | 0.519 | +0.001 |
+| lung | edge | 0.612 | 0.623 | +0.011 |
+| lung | leave-both | 0.509 | 0.509 | −0.000 |
+| external lung | edge | 0.623 | 0.634 | +0.011 |
+| external lung | leave-both | 0.503 | 0.504 | +0.000 |
+
+**Key finding.** The compact model's advantage over the best single branch holds
+under edge CV (+0.003 to +0.014, consistent with the original Table) but, like
+the underlying signal, shrinks to ±0.001 under leave-both-out CV.
 
 ---
 
