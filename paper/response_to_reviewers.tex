@@ -27,10 +27,8 @@ Carries Incremental Gene-Regulatory Signal Across Tissues}
 We thank the editor and both reviewers for a constructive and detailed
 assessment. Every substantive point has been addressed with \textbf{new
 experiments} rather than text changes alone; claim language was then recalibrated
-in light of the new results. All new analyses (cycles 43--53) are reproducible
-from \texttt{implementation/scripts/run\_wp*.py} and the shared
-\texttt{revision\_lib.py}; a consolidated summary is provided in
-\texttt{reports/revision\_cycles43-51\_new\_experiments.md}. Reviewer comments are
+in light of the new results. All new analyses are reproducible from the analysis
+code added to the public repository. Reviewer comments are
 shown \textit{\color{revcol}in italics}; our response and the resulting
 manuscript changes follow each.
 
@@ -62,7 +60,7 @@ stand-alone classifier. The recalibration is grounded in the new grouped-CV
 results (point~3), not wording alone.
 
 \rc{2. Make exploratory vs.\ confirmatory analyses explicit.}
-\textit{New experiment (WP5, cycle47).} A new Methods subsection states that
+\textit{New experiment.} A new Methods subsection states that
 representation choices were selected on kidney and immune. We then \textbf{froze}
 a single pre-specified pipeline (centered cosine, bundle L0--11, stacking; no
 per-domain tuning) and applied it once to the held-out confirmatory domains.
@@ -71,20 +69,20 @@ three seeds with bootstrap CIs above zero) under edge CV; $+0.0016$ and $+0.0009
 under leave-both-out. Reported in a new Results subsection and table.
 
 \rc{3. Strengthen leakage/generalization stress tests.}
-\textit{New experiment (WP1, cycle43; WP13, cycle53).} We re-evaluated under
+\textit{New experiments.} We re-evaluated under
 leave-TF-out, leave-target-out and leave-both-out grouped CV (new Methods
 subsection; new Table~``Geometric signal under grouped, leakage-resistant
 cross-validation''). The signal is fully robust to leave-TF-out and
 leave-target-out (delta comparable to, or larger than, edge CV) but
-\textbf{collapses to near-zero under leave-both-out} ($+0.001$ to $+0.003$); the
+\textbf{collapses to near-zero under leave-both-out} ($0$ to $+0.003$); the
 confound baseline also drops to AUROC $\approx0.50$ there. This is now reported as
 the honest ceiling of out-of-entity generalization, in Results, Discussion and as
 Limitation~3. We additionally extended the stress test to the compact stacking
-model (WP13): its advantage over the best single branch is preserved under
+model: its advantage over the best single branch is preserved under
 edge-level CV but, like the underlying signal, shrinks under leave-both-out.
 
 \rc{4. Expand and clarify negative-edge robustness.}
-\textit{New experiment (WP2, cycle44).} A new Methods subsection states the exact
+\textit{New experiment.} A new Methods subsection states the exact
 protocol (single rejection-sampled draw for the primary set). We additionally
 generated \textbf{degree-matched} and \textbf{expression-matched} harder
 negatives, each repeated for eight independent draws. The signal is stable across
@@ -95,7 +93,7 @@ Table~``Robustness to negative-edge construction''.
 \rc{5. Temper the scGPT vs.\ Geneformer comparison, or make representations
 comparable.}
 We chose to \textbf{make the extraction comparable} (option~a).
-\textit{New experiment (WP6, cycle51).} We extracted Geneformer per-layer
+\textit{New experiment.} We extracted Geneformer per-layer
 residual-stream activations from real forward passes over single cells (18-layer
 model, official rank-value tokenization) and applied the identical geometric
 pipeline to both models. Under matched extraction the apparent Geneformer
@@ -105,7 +103,7 @@ under matched per-layer extraction''; the original table's caption now flags its
 asymmetry; architectural-superiority language has been removed.
 
 \rc{6. Improve reporting of absolute performance, uncertainty, multiplicity.}
-\textit{New experiments (WP3, cycle45; WP4, cycle46; WP12, cycle52).} Absolute
+\textit{New experiments.} Absolute
 AUROC and AUPRC are now reported in \emph{every} results table---including the
 cell-type stratification table---and in a full per-layer supplementary panel. A
 new Methods subsection ``Uncertainty decomposition and multiplicity'' states the
@@ -118,8 +116,8 @@ $q<0.05$, including all headline results).
 A new Methods paragraph ``Implementation detail'' specifies the
 logistic-regression hyperparameters, in-fold standardization, randomized-SVD PCA
 configuration, cell-sampling policy, coverage filters and gene/cell aggregation.
-Every new analysis has a dedicated Methods subsection, and
-\texttt{implementation/README.md} lists reproduction commands for all new cycles.
+Every new analysis has a dedicated Methods subsection, and the repository's
+\texttt{README} lists reproduction commands for all new analyses.
 
 \rc{8. Keep biological interpretation clearly labeled as interpretation.}
 The CD8$^+$ T-cell paragraph now frames the account explicitly as ``a
@@ -131,14 +129,14 @@ abundance, library complexity, annotation density) that are not excluded.
 \section{Reviewer 2}
 
 \rc{1. Report actual AUROC, not just delta.}
-Done (WP3, WP12). Every results table now reports baseline-only and
+Done. Every results table now reports baseline-only and
 geometry-augmented absolute AUROC. Baseline AUROC ranges $0.50$--$0.65$; the
-geometry-augmented AUROC ($0.58$--$0.69$) is always above both $0.5$ and the
+geometry-augmented AUROC ($0.60$--$0.69$) is always above both $0.5$ and the
 baseline, so the deltas are genuine improvements over a meaningful starting
 point.
 
 \rc{2. Actual AUROC for usability; envision how to sift the signal.}
-\textit{New experiment (WP10, cycle49).} A new Results subsection reports top-$k$
+\textit{New experiment.} A new Results subsection reports top-$k$
 retrieval: the geometry-augmented model enriches true edges $1.6$--$2.1\times$
 over prevalence among the top~50 candidates, and we report a calibrated operating
 point (precision/recall). We state plainly that the modest absolute AUROC means
@@ -147,7 +145,7 @@ the Discussion gives a concrete pipeline (symmetric score for edge presence,
 asymmetric score for orientation, ensembling with GENIE3).
 
 \rc{3. Apply the refined methodology to the earlier results.}
-Done (WP3/WP7). The refined pipeline (centered cosine, PCA, bundle) is now applied
+Done. The refined pipeline (centered cosine, PCA, bundle) is now applied
 uniformly to kidney and immune as well; it improves those domains too (kidney
 $\Delta$AUROC $+0.076\to+0.122$; immune $+0.024\to+0.042$). A new unified-method
 table replaces the old two-panel table; the Results state that the refinement is
@@ -155,12 +153,12 @@ a uniform improvement, not a lung-specific rescue.
 
 \rc{4. AUROC can be misleading under class imbalance---report AUPRC.}
 Done. AUPRC and $\Delta$AUPRC are reported in all results tables and the
-supplementary panel, and precision/recall@$k$ in the new retrieval analysis
-(WP10). Prevalence is reported per domain so AUPRC can be read against its
+supplementary panel, and precision/recall@$k$ in the new retrieval analysis.
+Prevalence is reported per domain so AUPRC can be read against its
 baseline.
 
 \rc{5. Ensemble with existing GRN inference methods---solid evidence.}
-\textit{New experiment (WP9, cycle50).} A new Results subsection and
+\textit{New experiment.} A new Results subsection and
 Table~``Geometric signal on top of expression-based GRN inference'': we computed
 GENIE3-style random-forest importance and Pearson co-expression on each domain
 and show that adding the geometric signal improves AUROC by $+0.023$ to $+0.085$
@@ -169,7 +167,7 @@ in the Discussion now cites this direct evidence rather than only envisioning it
 
 \rc{6. Can the geometric signal provide directionality? The metrics appear
 symmetric.}
-\textit{New experiment (WP8, cycle48).} The reviewer is correct that cosine,
+\textit{New experiment.} The reviewer is correct that cosine,
 centered cosine, $L_2$ and dot product are symmetric and cannot encode direction.
 We added a directionality analysis using \textbf{asymmetric} per-layer features
 (signed norm and mean-coordinate differences): under pair-grouped CV they predict
