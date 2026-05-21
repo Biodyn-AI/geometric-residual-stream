@@ -142,7 +142,7 @@ Centered-cos.\ bundle & L0--11 & 0.505 & 0.627 & $+0.122$ & $[0.075, 0.165]$ & $
 
 Importantly, null controls confirmed that this signal is genuine.
 The null controls were run at layer~5, where the raw-cosine effect is near its peak (layers~4 and~5 are essentially tied).
-Label-permutation analysis ($n = 40$) yielded an empirical $p$-value of 0.025 at layer~5, indicating that fewer than 1 in 40 random label assignments produced a $\DAURC$ as large as the observed value.
+Label-permutation analysis ($n = 40$) yielded an empirical $p$-value of 0.025 at layer~5, indicating that only 1 of 40 random label assignments produced a $\DAURC$ as large as the observed value.
 The geometry-feature shuffle null ($n = 60$) produced even stronger separation: the true $\DAURC$ of 0.075 at L5 compared to a null mean of 0.003, with an empirical $p < 1/60$ ($<0.017$).
 Together, these controls establish that the observed geometric signal is neither a statistical artifact of the evaluation procedure nor an effect of adding any arbitrary additional feature (Figure~\ref{fig:null_controls}).
 
@@ -417,7 +417,7 @@ Edge-level random cross-validation can permit gene-identity carryover: the same 
 To stress-test out-of-entity generalization, we re-evaluated the refined multi-layer bundle under three grouped splits (Table~\ref{tab:grouped}): leave-TF-out (no TF shared across folds), leave-target-out (no target shared), and leave-both-out (neither a TF nor a target shared).
 
 The geometric signal was fully robust to leave-TF-out and leave-target-out cross-validation; the incremental $\DAURC$ under these splits was comparable to, and in several cases larger than, the edge-level estimate (e.g.\ kidney leave-TF-out $\DAURC = +0.135$; immune $+0.074$).
-Under the stricter \emph{leave-both-out} split, however, the signal collapsed to near-zero ($\DAURC = +0.001$ to $+0.003$).
+Under the stricter \emph{leave-both-out} split, however, the signal collapsed to near-zero ($\DAURC$ of $0$ to $+0.003$ across domains; Table~\ref{tab:grouped}).
 In this regime the confound-only baseline itself dropped to AUROC $\approx 0.50$, indicating that when no gene identity is shared the edge-classification task becomes close to intractable for all feature sets.
 A small positive residual persisted with a bootstrap confidence interval above zero in lung and external lung, but not in kidney or immune.
 We therefore interpret leave-both-out performance as the honest ceiling of fully out-of-entity generalization: the geometric signal is a within-gene-universe re-ranking aid, not a mechanism for predicting regulatory relationships among entirely unseen genes.
@@ -489,7 +489,7 @@ Geneformer retained a modest edge in the lung domains, which we now describe as 
 \begin{table}[t]
 \centering
 \caption{\textbf{Cross-model comparison under matched per-layer extraction.}
-Absolute baseline-only and geometry-augmented AUROC, and $\DAURC$, for the centered-cosine multi-layer bundle applied identically to scGPT and to Geneformer residual-stream activations.
+Absolute baseline-only and geometry-augmented AUROC, and $\DAURC$, for the centered-cosine multi-layer bundle applied identically to scGPT and to Geneformer residual-stream activations (single-seed extraction; the seed-ensemble scGPT values in Table~\ref{tab:bundle} are correspondingly slightly higher).
 The gap column is the Geneformer minus scGPT $\DAURC$.}
 \label{tab:crossmatched}
 \small
